@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Rekenen">
+<meta name="theme-color" content="#EEEFF2">
+<title>Rekentrainer</title>
+<style>
+:root{
+  --bg:#EEEFF2; --panel:#FFFFFF; --ink:#12151A; --muted:#6B7280;
+  --accent:#2B5CE6; --ok:#0F8A5F; --bad:#C2352E; --line:#D6D9E0; --sunk:#E4E6EB;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F1216; --panel:#171B21; --ink:#E7EAEE; --muted:#8A94A3;
+    --accent:#6B8CFF; --ok:#34C38F; --bad:#FF6B63; --line:#262C34; --sunk:#11151A;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:16px; line-height:1.5;
+  -webkit-text-size-adjust:100%;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 10px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card + .card{margin-top:10px}
+
+/* setup */
+.preset-row{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:999px;
+  padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.mode-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.mode-head input{width:18px;height:18px;accent-color:var(--accent);flex:none}
+.mode-name{font-weight:500;flex:1}
+.mode-hint{font-size:12px;color:var(--muted)}
+.fields{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.card.on .fields{display:block}
+.frow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}
+.frow label{flex:1;color:var(--muted)}
+input[type=number],select{
+  background:var(--sunk);border:1px solid var(--line);color:var(--ink);
+  border-radius:7px;padding:7px 8px;font-size:16px;font-family:ui-monospace,monospace;
+  width:76px;text-align:center;-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+select{width:auto;min-width:96px;font-family:inherit;font-size:14px}
+.dash{color:var(--muted)}
+.settings .frow label{flex:1}
+.btn{display:block;width:100%;background:var(--accent);color:#fff;border:none;border-radius:11px;
+  padding:15px;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:18px}
+.btn:active{opacity:.85}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:500;margin-top:8px}
+.linkrow{display:flex;gap:16px;justify-content:center;margin-top:18px}
+.link{background:none;border:none;color:var(--muted);font-size:13px;text-decoration:underline;
+  cursor:pointer;font-family:inherit;padding:4px}
+.err{color:var(--bad);font-size:13px;text-align:center;margin-top:10px;min-height:18px}
+
+/* session */
+#session{display:none}
+.bar{position:relative;height:6px;background:var(--sunk);border-radius:3px;overflow:hidden;margin-bottom:8px}
+#fill{position:absolute;inset:0 auto 0 0;background:var(--accent);width:100%}
+.tick{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.55}
+.tick.bad{background:var(--bad);opacity:1}
+.hud{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:34px}
+.q{font-size:clamp(38px,11vw,58px);font-weight:500;text-align:center;letter-spacing:-.02em;min-height:1.2em}
+.a{font-size:clamp(30px,9vw,44px);text-align:center;color:var(--accent);min-height:1.3em;margin-top:6px}
+.a.bad{color:var(--bad)}
+.flash{font-size:14px;text-align:center;color:var(--bad);min-height:20px;margin-top:2px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:26px}
+.key{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;
+  padding:17px 0;font-size:22px;font-family:ui-monospace,monospace;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;user-select:none}
+.key:active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.key.wide{grid-column:span 1}
+
+/* results + stats */
+#results,#stats{display:none}
+.big{display:flex;gap:10px;margin:14px 0}
+.stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px;text-align:center}
+.stat .v{font-size:26px;font-weight:600;font-family:ui-monospace,monospace}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.strip{display:flex;align-items:flex-end;gap:2px;height:86px;padding:10px;background:var(--panel);
+  border:1px solid var(--line);border-radius:11px;overflow-x:auto}
+.strip i{flex:1 0 5px;min-width:5px;background:var(--accent);border-radius:2px 2px 0 0;display:block}
+.strip i.bad{background:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  font-weight:600;padding:0 0 6px}
+td{padding:7px 0;border-top:1px solid var(--line);font-family:ui-monospace,monospace}
+td:last-child,th:last-child{text-align:right}
+.empty{color:var(--muted);font-size:14px;padding:14px 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ============ SETUP ============ -->
+<section id="setup">
+  <div class="top"><h1>Rekentrainer</h1><span class="sub" id="totalDone"></span></div>
+  <p class="sub">Kies wat je wil oefenen. Alles blijft bewaard op dit apparaat.</p>
+
+  <h2>Presets</h2>
+  <div class="preset-row" id="presets"></div>
+
+  <h2>Oefeningen</h2>
+  <div id="modes"></div>
+
+  <h2>Instellingen</h2>
+  <div class="card settings">
+    <div class="frow">
+      <label for="dur">Sessieduur</label>
+      <select id="dur">
+        <option value="30">30 sec</option>
+        <option value="60">60 sec</option>
+        <option value="120" selected>120 sec</option>
+        <option value="300">5 min</option>
+        <option value="0">geen limiet</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label for="weighted">Trage sommen vaker herhalen</label>
+      <select id="weighted"><option value="1" selected>aan</option><option value="0">uit</option></select>
+    </div>
+    <div class="frow">
+      <label for="auto">Doorgaan zodra het antwoord klopt</label>
+      <select id="auto"><option value="1" selected>aan</option><option value="0">uit, met enter</option></select>
+    </div>
+    <div class="frow">
+      <label for="tol">Tolerantie bij decimalen</label>
+      <select id="tol">
+        <option value="0">exact</option>
+        <option value="0.5">0,5 procent</option>
+        <option value="1" selected>1 procent</option>
+        <option value="2">2 procent</option>
+        <option value="5">5 procent</option>
+      </select>
+    </div>
+    <div class="frow">
+      <label for="pad">Toetsenblok op het scherm</label>
+      <select id="pad"><option value="auto" selected>automatisch</option><option value="1">altijd</option><option value="0">nooit</option></select>
+    </div>
+  </div>
+
+  <button class="btn" id="start">Beginnen</button>
+  <p class="err" id="setupErr"></p>
+  <div class="linkrow">
+    <button class="link" id="toStats">Statistieken</button>
+    <button class="link" id="doExport">Exporteren</button>
+    <button class="link" id="doImport">Importeren</button>
+  </div>
+</section>
+
+<!-- ============ SESSION ============ -->
+<section id="session">
+  <div class="bar"><div id="fill"></div></div>
+  <div class="hud">
+    <span class="mono" id="clock">120</span>
+    <span class="mono" id="score">0</span>
+  </div>
+  <div class="q mono" id="q"></div>
+  <div class="a mono" id="a"></div>
+  <div class="flash" id="flash"></div>
+  <div class="pad" id="keypad"></div>
+  <button class="btn ghost" id="stop">Stoppen</button>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section id="results">
+  <div class="top"><h1>Klaar</h1><span class="sub" id="pb"></span></div>
+  <div class="big">
+    <div class="stat"><div class="v" id="rGoed">0</div><div class="l">goed</div></div>
+    <div class="stat"><div class="v" id="rTempo">0</div><div class="l">per minuut</div></div>
+    <div class="stat"><div class="v" id="rAcc">0%</div><div class="l">accuraat</div></div>
+  </div>
+  <h2>Ritme</h2>
+  <div class="strip" id="strip"></div>
+  <p class="sub" style="margin-top:6px">Elke balk is een som. Hoger is trager. Rood is fout.</p>
+  <h2>Traagste sommen deze sessie</h2>
+  <div class="card"><div id="rSlow"></div></div>
+  <button class="btn" id="again">Nog een keer</button>
+  <button class="btn ghost" id="back">Terug naar instellingen</button>
+</section>
+
+<!-- ============ STATS ============ -->
+<section id="stats">
+  <div class="top"><h1>Statistieken</h1></div>
+  <p class="sub">Over al je sessies heen, per losse som.</p>
+  <h2>Waar je tijd verliest</h2>
+  <div class="card"><div id="sSlow"></div></div>
+  <h2>Laatste sessies</h2>
+  <div class="card"><div id="sHist"></div></div>
+  <button class="btn ghost" id="sBack">Terug</button>
+  <button class="btn ghost" id="wipe">Alles wissen</button>
+</section>
+
+</div>
+<script>
+/* ---------- opslag ---------- */
+const mem={};
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return k in mem?mem[k]:d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){mem[k]=v}}
+};
+let stats=store.get('rt_stats',{});      // key -> {n, ok, ms}
+let hist =store.get('rt_hist',[]);       // sessies
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+
+/* ---------- oefeningen ----------
+   Een modus levert {q, ans, key}. Nieuwe modus toevoegen is één blok hieronder. */
+const MODES={
+  add:{label:'Optellen',hint:'a + b',
+    fields:[['a','Eerste getal',2,100],['b','Tweede getal',2,100]],
+    gen(c){const a=rnd(...c.a),b=rnd(...c.b);const[x,y]=a<=b?[a,b]:[b,a];
+      return{q:`${a} + ${b}`,ans:a+b,key:`add:${x}+${y}`}}},
+
+  sub:{label:'Aftrekken',hint:'antwoord blijft positief',
+    fields:[['a','Antwoord ligt tussen',2,100],['b','Af te trekken',2,100]],
+    gen(c){const x=rnd(...c.a),y=rnd(...c.b);
+      return{q:`${x+y} - ${y}`,ans:x,key:`sub:${x+y}-${y}`}}},
+
+  mul:{label:'Vermenigvuldigen',hint:'a x b',
+    fields:[['a','Eerste getal',2,12],['b','Tweede getal',2,100]],
+    gen(c){const a=rnd(...c.a),b=rnd(...c.b);const[x,y]=a<=b?[a,b]:[b,a];
+      return{q:`${a} x ${b}`,ans:a*b,key:`mul:${x}x${y}`}}},
+
+  div:{label:'Delen',hint:'gaat altijd op',
+    fields:[['a','Antwoord ligt tussen',2,12],['b','Deler',2,100]],
+    gen(c){const x=rnd(...c.a),y=rnd(...c.b);
+      return{q:`${x*y} : ${y}`,ans:x,key:`div:${x*y}:${y}`}}},
+
+  sq:{label:'Kwadraten',hint:'n²',
+    fields:[['n','Bereik',2,50]],
+    gen(c){const n=rnd(...c.n);return{q:`${n}²`,ans:n*n,key:`sq:${n}`}}},
+
+  cube:{label:'Derdemachten',hint:'n³',
+    fields:[['n','Bereik',2,20]],
+    gen(c){const n=rnd(...c.n);return{q:`${n}³`,ans:n*n*n,key:`cube:${n}`}}},
+
+  compl:{label:'Complementen',hint:'aanvullen tot een rond getal',
+    fields:[['n','Bereik',2,99]],
+    selects:[['base','Basis',[100,1000,10000]]],
+    gen(c){const b=+c.base,n=rnd(c.n[0],Math.min(c.n[1],b-1));
+      return{q:`${b} - ${n}`,ans:b-n,key:`compl${b}:${n}`}}},
+
+  pct:{label:'Procenten',hint:'x procent van y',
+    fields:[['y','Bereik van y',20,900]],
+    gen(c){const p=pick([5,10,15,20,25,30,40,50,60,75,80]),y=rnd(...c.y);
+      return{q:`${p}% van ${y}`,ans:y*p/100,dec:true,key:`pct:${p}of${y}`}}},
+
+  recip:{label:'Reciprocals',hint:'1 gedeeld door n, decimaal',
+    fields:[['n','Bereik',2,30]],
+    gen(c){const n=rnd(...c.n);return{q:`1 : ${n}`,ans:1/n,dec:true,key:`recip:${n}`}}}
+};
+
+const PRESETS={
+  zetamac:{label:'Zetamac',dur:120,cfg:{add:{on:1,a:[2,100],b:[2,100]},sub:{on:1,a:[2,100],b:[2,100]},
+    mul:{on:1,a:[2,12],b:[2,100]},div:{on:1,a:[2,12],b:[2,100]}}},
+  fundament:{label:'Fundament',dur:120,cfg:{sq:{on:1,n:[2,50]},mul:{on:1,a:[2,19],b:[2,19]},
+    sub:{on:1,a:[10,99],b:[10,99]}}},
+  kwadraten:{label:'Kwadraten 2-50',dur:120,cfg:{sq:{on:1,n:[2,50]}}},
+  tafels:{label:'Tafels 2-19',dur:120,cfg:{mul:{on:1,a:[2,19],b:[2,19]}}},
+  eencijferig:{label:'2-cijferig x 1',dur:120,cfg:{mul:{on:1,a:[2,9],b:[10,99]}}},
+  aftrekken:{label:'Aftrekken 2-cijferig',dur:120,cfg:{sub:{on:1,a:[10,99],b:[10,99]}}},
+  vier:{label:'4-cijferig',dur:180,cfg:{add:{on:1,a:[1000,9999],b:[1000,9999]},
+    sub:{on:1,a:[1000,9999],b:[1000,9999]}}}
+};
+
+/* ---------- config opbouwen ---------- */
+let cfg=store.get('rt_cfg',null);
+if(!cfg){cfg={};for(const k in MODES){cfg[k]={on:0};
+  MODES[k].fields.forEach(([f,,lo,hi])=>cfg[k][f]=[lo,hi]);
+  (MODES[k].selects||[]).forEach(([s,,v])=>cfg[k][s]=v[0]);}
+  Object.assign(cfg,JSON.parse(JSON.stringify(PRESETS.zetamac.cfg)));}
+for(const k in MODES){ // vul gaten na een update
+  cfg[k]=cfg[k]||{on:0};
+  MODES[k].fields.forEach(([f,,lo,hi])=>{if(!Array.isArray(cfg[k][f]))cfg[k][f]=[lo,hi]});
+  (MODES[k].selects||[]).forEach(([s,,v])=>{if(cfg[k][s]==null)cfg[k][s]=v[0]});
+}
+const $=id=>document.getElementById(id);
+const opt=store.get('rt_opt',{dur:120,weighted:1,auto:1,tol:1,pad:'auto'});
+['dur','weighted','auto','tol','pad'].forEach(k=>{$(k).value=opt[k];
+  $(k).onchange=()=>{opt[k]=$(k).value;store.set('rt_opt',opt)}});
+
+/* ---------- setup renderen ---------- */
+function renderPresets(){
+  $('presets').innerHTML='';
+  for(const p in PRESETS){
+    const b=document.createElement('button');b.className='chip';b.textContent=PRESETS[p].label;
+    b.onclick=()=>{
+      for(const k in cfg)cfg[k].on=0;
+      const c=JSON.parse(JSON.stringify(PRESETS[p].cfg));
+      for(const k in c)Object.assign(cfg[k],c[k]);
+      opt.dur=String(PRESETS[p].dur);$('dur').value=opt.dur;
+      store.set('rt_cfg',cfg);store.set('rt_opt',opt);renderModes();
+    };
+    $('presets').appendChild(b);
+  }
+}
+function renderModes(){
+  const box=$('modes');box.innerHTML='';
+  for(const k in MODES){
+    const m=MODES[k],c=cfg[k];
+    const card=document.createElement('div');
+    card.className='card'+(c.on?' on':'');
+    const head=document.createElement('label');head.className='mode-head';
+    head.innerHTML=`<input type="checkbox" ${c.on?'checked':''}>
+      <span class="mode-name">${m.label}</span><span class="mode-hint">${m.hint}</span>`;
+    head.querySelector('input').onchange=e=>{
+      c.on=e.target.checked?1:0;card.classList.toggle('on',!!c.on);store.set('rt_cfg',cfg)};
+    card.appendChild(head);
+    const f=document.createElement('div');f.className='fields';
+    m.fields.forEach(([key,label])=>{
+      const row=document.createElement('div');row.className='frow';
+      row.innerHTML=`<label>${label}</label>
+        <input type="number" inputmode="numeric" value="${c[key][0]}">
+        <span class="dash">tot</span>
+        <input type="number" inputmode="numeric" value="${c[key][1]}">`;
+      const [lo,hi]=row.querySelectorAll('input');
+      const save=()=>{const a=+lo.value||0,b=+hi.value||0;c[key]=[Math.min(a,b),Math.max(a,b)];store.set('rt_cfg',cfg)};
+      lo.onchange=save;hi.onchange=save;
+      f.appendChild(row);
+    });
+    (m.selects||[]).forEach(([key,label,vals])=>{
+      const row=document.createElement('div');row.className='frow';
+      row.innerHTML=`<label>${label}</label><select>${vals.map(v=>
+        `<option value="${v}" ${c[key]==v?'selected':''}>${v}</option>`).join('')}</select>`;
+      row.querySelector('select').onchange=e=>{c[key]=+e.target.value;store.set('rt_cfg',cfg)};
+      f.appendChild(row);
+    });
+    card.appendChild(f);box.appendChild(card);
+  }
+  const n=Object.values(stats).reduce((s,v)=>s+v.n,0);
+  $('totalDone').textContent=n?`${n} sommen gedaan`:'';
+}
+renderPresets();renderModes();
+
+/* ---------- trekking ---------- */
+function activeModes(){return Object.keys(MODES).filter(k=>cfg[k].on)}
+function weightOf(key){
+  const s=stats[key];
+  if(!s||s.n<1)return 2.5;
+  const avg=s.ms/s.n/1000, errRate=1-s.ok/s.n;
+  return Math.min(12,avg*(1+2*errRate));
+}
+function nextQuestion(){
+  const modes=activeModes();
+  const make=()=>{const k=pick(modes);const q=MODES[k].gen(cfg[k]);q.mode=k;return q};
+  if(opt.weighted!=='1'&&opt.weighted!==1)return make();
+  const cands=[make(),make(),make(),make(),make(),make()];
+  const w=cands.map(c=>weightOf(c.key));
+  let r=Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let i=0;i<cands.length;i++){r-=w[i];if(r<=0)return cands[i]}
+  return cands[0];
+}
+
+/* ---------- sessie ---------- */
+let cur=null,typed='',t0=0,tStart=0,limit=0,timer=null,log=[],goed=0,fout=0,running=false;
+const show=id=>['setup','session','results','stats'].forEach(s=>$(s).style.display=s===id?'block':'none');
+
+function wantPad(){
+  if(opt.pad==='1')return true;
+  if(opt.pad==='0')return false;
+  return window.matchMedia('(pointer: coarse)').matches;
+}
+function buildPad(){
+  const keys=['1','2','3','4','5','6','7','8','9','.','0','←'];
+  $('keypad').innerHTML='';
+  if(!wantPad()){$('keypad').style.display='none';return}
+  $('keypad').style.display='grid';
+  keys.forEach(k=>{
+    const b=document.createElement('button');b.className='key';b.textContent=k;
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=()=>press(k==='←'?'Backspace':k);
+    $('keypad').appendChild(b);
+  });
+}
+
+function startSession(){
+  const modes=activeModes();
+  if(!modes.length){$('setupErr').textContent='Zet minstens één oefening aan.';return}
+  $('setupErr').textContent='';
+  limit=+opt.dur;log=[];goed=0;fout=0;running=true;
+  tStart=Date.now();
+  $('fill').style.width='100%';
+  document.querySelectorAll('.tick').forEach(t=>t.remove());
+  $('score').textContent='0';
+  buildPad();show('session');
+  askNew();
+  timer=setInterval(tick,100);
+  tick();
+}
+function tick(){
+  const el=(Date.now()-tStart)/1000;
+  if(limit>0){
+    const left=Math.max(0,limit-el);
+    $('clock').textContent=left>=10?Math.ceil(left):left.toFixed(1);
+    $('fill').style.width=(left/limit*100)+'%';
+    if(left<=0)endSession();
+  }else{
+    $('clock').textContent=Math.floor(el)+'s';
+    $('fill').style.width='100%';
+  }
+}
+function askNew(){
+  cur=nextQuestion();typed='';t0=Date.now();
+  $('q').textContent=cur.q;$('a').textContent='';$('a').className='a mono';$('flash').textContent='';
+}
+function fmt(n){
+  if(Number.isInteger(n))return String(n);
+  return String(Math.round(n*10000)/10000).replace('.',',');
+}
+function correct(v){
+  if(v===''||v==null)return false;
+  const num=parseFloat(String(v).replace(',','.'));
+  if(isNaN(num))return false;
+  if(!cur.dec)return num===cur.ans;
+  const tol=+opt.tol/100;
+  if(tol===0)return Math.abs(num-cur.ans)<1e-9;
+  return Math.abs(num-cur.ans)<=Math.max(Math.abs(cur.ans)*tol,1e-9);
+}
+function record(ok,ms){
+  const s=stats[cur.key]||(stats[cur.key]={n:0,ok:0,ms:0});
+  s.n++;if(ok)s.ok++;s.ms+=ms;
+  store.set('rt_stats',stats);
+  log.push({q:cur.q,ans:cur.ans,key:cur.key,ms,ok});
+  if(ok)goed++;else fout++;
+  $('score').textContent=String(goed);
+  if(limit>0){
+    const t=document.createElement('div');
+    t.className='tick'+(ok?'':' bad');
+    t.style.left=Math.min(99,((Date.now()-tStart)/1000/limit)*100)+'%';
+    $('fill').parentNode.appendChild(t);
+  }
+}
+function press(k){
+  if(!running)return;
+  if(k==='Backspace'){typed=typed.slice(0,-1);}
+  else if(k==='Enter'){submit();return;}
+  else if(/^[0-9]$/.test(k)){typed+=k;}
+  else if(k==='.'||k===','){if(!typed.includes(','))typed+=',';}
+  else if(k==='-'){if(typed==='')typed='-';}
+  else return;
+  $('a').textContent=typed;$('a').className='a mono';$('flash').textContent='';
+  const auto=(opt.auto==='1'||opt.auto===1);
+  if(auto&&!cur.dec&&typed!==''&&correct(typed)){
+    record(true,Date.now()-t0);askNew();
+  }
+}
+function submit(){
+  if(typed==='')return;
+  const ok=correct(typed);
+  record(ok,Date.now()-t0);
+  if(ok){askNew();}
+  else{
+    $('a').className='a mono bad';
+    $('flash').textContent=`${cur.q} = ${fmt(cur.ans)}`;
+    setTimeout(()=>{if(running)askNew()},900);
+    typed='';
+  }
+}
+document.addEventListener('keydown',e=>{
+  if(!running)return;
+  if(e.key==='Escape'){endSession();return}
+  if(['Enter','Backspace'].includes(e.key)||/^[0-9.,-]$/.test(e.key)){e.preventDefault();press(e.key)}
+});
+function endSession(){
+  if(!running)return;
+  running=false;clearInterval(timer);
+  const secs=limit>0?limit:(Date.now()-tStart)/1000;
+  const tempo=secs>0?(goed/secs*60):0;
+  const acc=log.length?Math.round(goed/log.length*100):0;
+  const label=activeModes().map(k=>MODES[k].label).join(', ');
+  hist.unshift({d:Date.now(),goed,tempo:+tempo.toFixed(1),acc,secs:Math.round(secs),label});
+  hist=hist.slice(0,60);store.set('rt_hist',hist);
+  $('rGoed').textContent=goed;
+  $('rTempo').textContent=tempo.toFixed(1);
+  $('rAcc').textContent=acc+'%';
+  const same=hist.filter(h=>h.label===label&&h.secs===Math.round(secs));
+  const best=Math.max(...same.map(h=>h.goed));
+  $('pb').textContent=same.length>1?(goed>=best?'nieuw record':`record is ${best}`):'';
+  const max=Math.max(1,...log.map(l=>l.ms));
+  $('strip').innerHTML=log.map(l=>
+    `<i class="${l.ok?'':'bad'}" style="height:${Math.max(4,l.ms/max*66)}px" title="${l.q}"></i>`).join('')
+    ||'<span class="empty">geen antwoorden</span>';
+  const slow=[...log].filter(l=>l.ok).sort((a,b)=>b.ms-a.ms).slice(0,8);
+  $('rSlow').innerHTML=slow.length?
+    `<table><tr><th>som</th><th>seconden</th></tr>${slow.map(l=>
+      `<tr><td>${l.q}</td><td>${(l.ms/1000).toFixed(1)}</td></tr>`).join('')}</table>`
+    :'<p class="empty">Nog niks om te tonen.</p>';
+  renderModes();show('results');
+}
+
+/* ---------- statistieken ---------- */
+function renderStats(){
+  const prefixes=activeModes();
+  const rows=Object.entries(stats)
+    .filter(([k,v])=>v.n>=2&&prefixes.some(p=>k.startsWith(p)))
+    .map(([k,v])=>({k,avg:v.ms/v.n/1000,n:v.n,acc:Math.round(v.ok/v.n*100)}))
+    .sort((a,b)=>b.avg-a.avg).slice(0,20);
+  $('sSlow').innerHTML=rows.length?
+    `<table><tr><th>som</th><th>keer</th><th>goed</th><th>sec</th></tr>${rows.map(r=>
+      `<tr><td>${label(r.k)}</td><td>${r.n}</td><td>${r.acc}%</td><td>${r.avg.toFixed(1)}</td></tr>`).join('')}</table>`
+    :'<p class="empty">Nog te weinig herhalingen. Doe eerst een paar sessies.</p>';
+  $('sHist').innerHTML=hist.length?
+    `<table><tr><th>wanneer</th><th>goed</th><th>per min</th></tr>${hist.slice(0,12).map(h=>
+      `<tr><td>${new Date(h.d).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}</td>
+       <td>${h.goed}</td><td>${h.tempo}</td></tr>`).join('')}</table>`
+    :'<p class="empty">Nog geen sessies.</p>';
+}
+function label(k){
+  const [p,rest]=k.split(':');
+  if(p==='sq')return rest+'²';
+  if(p==='cube')return rest+'³';
+  if(p==='recip')return '1 : '+rest;
+  if(p.startsWith('compl'))return p.slice(5)+' - '+rest;
+  if(p==='pct')return rest.replace('of','% van ');
+  return rest;
+}
+
+/* ---------- knoppen ---------- */
+$('start').onclick=startSession;
+$('stop').onclick=endSession;
+$('again').onclick=startSession;
+$('back').onclick=()=>{renderModes();show('setup')};
+$('toStats').onclick=()=>{renderStats();show('stats')};
+$('sBack').onclick=()=>show('setup');
+$('wipe').onclick=()=>{
+  if(!confirm('Alle statistieken en sessies wissen?'))return;
+  stats={};hist=[];store.set('rt_stats',stats);store.set('rt_hist',hist);
+  renderStats();renderModes();
+};
+$('doExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify({stats,hist,cfg,opt},null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='rekentrainer-backup.json';a.click();
+};
+$('doImport').onclick=()=>{
+  const inp=document.createElement('input');inp.type='file';inp.accept='application/json';
+  inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();
+    r.onload=()=>{try{
+      const d=JSON.parse(r.result);
+      if(d.stats){stats=d.stats;store.set('rt_stats',stats)}
+      if(d.hist){hist=d.hist;store.set('rt_hist',hist)}
+      if(d.cfg){Object.assign(cfg,d.cfg);store.set('rt_cfg',cfg)}
+      renderModes();alert('Geïmporteerd.');
+    }catch(e){alert('Dat bestand kon ik niet lezen.')}};
+    r.readAsText(f)};
+  inp.click();
+};
+show('setup');
+</script>
+</body>
+</html>
