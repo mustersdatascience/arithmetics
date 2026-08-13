@@ -64,6 +64,22 @@ Je werklast blijft beheersbaar doordat de sessie op urgentie gevuld wordt: veel
 tijd betekent verder in de lijst komen, weinig tijd betekent alleen het meest
 urgente.
 
+### Een sessie blijft afwisselend
+
+Hoeveel er ook openstaat, hoogstens een derde van een sessie bestaat uit
+herhalingen. Staat er weinig dringend open, dan zakt dat aandeel vanzelf en komt
+er meer nieuw materiaal langs. Andersom loopt het nooit op: een sessie mag niet
+in stampen veranderen.
+
+De plaatsing is bovendien willekeurig in plaats van elke zoveelste som, en er
+komen nooit twee herhalingen achter elkaar. Bij een bord waar alles openstond
+kwam dat in een test uit op 31 procent, verspreid door de sessie.
+
+Eén op de tien sommen wordt volledig willekeurig getrokken, zonder weging. De
+planner kiest anders zelf wat je ziet en leert daarna alleen van wat hij koos:
+een som waarvan hij ten onrechte denkt dat je die kent zou dan nooit langskomen
+om dat te weerleggen.
+
 ### Parameters die zichzelf ijken
 
 Vier waarden sturen het model. Twee ervan stelt de app zelf bij op je eigen
@@ -94,7 +110,12 @@ bijstelt moet niet ongemerkt kunnen wegdrijven.
 
 - Draai je het scherm weg of word je onderbroken, dan staat de klok stil en telt
   die som niet mee in de gemiddelden.
-- Sommen boven de dertig seconden worden als uitschieter gemarkeerd.
+- Sommen die veel te lang duren gelden als uitschieter. Die grens hangt af van
+  je normtijd voor dat soort som, want een halve minuut kan bij 4-cijferig
+  optellen echt zijn en is bij 6 x 7 overduidelijk een onderbreking.
+- Een sessie telt eerst af van drie naar één. Zonder dat zat de tijd waarin je
+  nog naar het scherm kijkt in de meting van je eerste som, bij elke sessie
+  opnieuw.
 - In de stand "doorgaan zodra het antwoord klopt" wordt een antwoord met evenveel
   cijfers als het juiste antwoord dat niet klopt als fout geteld. Zonder die
   regel werd in die stand nooit een fout geregistreerd.

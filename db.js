@@ -90,14 +90,16 @@ export async function flushOutbox() {
 
 /* --------------------------------------------------------------- lezen */
 
-async function selectAll(build) {
+async function selectAll(build, maxPages = 40) {
   const out = [];
-  for (let from = 0; ; from += PAGE) {
+  for (let page = 0; page < maxPages; page++) {
+    const from = page * PAGE;
     const { data, error } = await build().range(from, from + PAGE - 1);
     if (error) throw error;
     out.push(...data);
-    if (data.length < PAGE) return out;
+    if (data.length < PAGE) break;
   }
+  return out;
 }
 
 /* Alles wat de app per som moet weten.
