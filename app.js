@@ -279,6 +279,39 @@ function renderModes() {
   });
 }
 
+/* Een korte handtekening van een configuratie: welke categorieën staan aan en
+   met welke bereiken. Twee configuraties met dezelfde handtekening zijn dezelfde
+   oefening, ongeacht of je op de presetknop hebt gedrukt. Daarop worden sessies
+   aan presets gekoppeld; de opgeslagen presetnaam is maar een hint. */
+function configSignature(conf) {
+  if (!conf) return null;
+  const parts = [];
+  for (const k of Object.keys(MODES)) {
+    const c = conf[k];
+    if (!c || !c.on) continue;
+    const velden = MODES[k].fields
+      .map(([n]) => Array.isArray(c[n]) ? `${c[n][0]}-${c[n][1]}` : '?').join(',');
+    const keuzes = (MODES[k].selects || []).map(([n]) => String(c[n] ?? '')).join(',');
+    parts.push(`${k}:${velden}${keuzes ? '|' + keuzes : ''}`);
+  }
+  return parts.length ? parts.join(';') : null;
+}
+
+/* Handtekening -> presetnaam, voor de ingebouwde presets en die van jezelf.
+   Eigen presets gaan voor: die heb je zelf een naam gegeven. */
+function presetIndex() {
+  const idx = new Map();
+  for (const p in PRESETS) {
+    const sig = configSignature(PRESETS[p].cfg);
+    if (sig) idx.set(sig, PRESETS[p].label);
+  }
+  for (const p of customPresets) {
+    const sig = configSignature(p.config);
+    if (sig) idx.set(sig, p.name);
+  }
+  return idx;
+}
+
 /* Leesbare omschrijving van een configuratie, voor het sessieoverzicht. */
 function describeConfig(conf) {
   const out = [];
@@ -965,10 +998,14 @@ function renderBody() {
    krijgen een eigen grafiek, want twee minuten en vijf minuten zijn niet met
    elkaar te vergelijken. Sessies zonder limiet worden per minuut geteld. */
 function renderVoortgang(list) {
+  const idx = presetIndex();
   const groepen = new Map();
+  let buiten = 0;
   for (const s of list) {
     if (s.kind === 'drill') continue;                 // stampen is een ander spel
-    const naam = s.preset || 'Eigen instelling';
+    // koppelen op de instellingen zelf, niet op of je de presetknop indrukte
+    const naam = idx.get(configSignature(s.config));
+    if (!naam) { buiten++; continue; }                // geen preset, geen grafiek
     const key = `${naam}||${s.limit_s}`;
     if (!groepen.has(key)) groepen.set(key, { naam, limit: s.limit_s, rijen: [] });
     groepen.get(key).rijen.push(s);
@@ -1010,7 +1047,10 @@ function renderVoortgang(list) {
 
   $('sCount').textContent = `${blokken.length} preset${blokken.length === 1 ? '' : 's'}`;
   $('sBody').innerHTML = `<p class="sub">Per preset hoeveel je goed had, oudste sessie links.
-    De lijn is de trend over al je sessies met die preset.</p>` +
+    De lijn is de trend over al je sessies met die preset. Een sessie telt mee zodra de
+    instellingen overeenkomen, ook als je de presetknop niet gebruikte.${
+      buiten ? ` ${buiten} sessie${buiten === 1 ? '' : 's'} met een eigen instelling ${
+      buiten === 1 ? 'valt' : 'vallen'} erbuiten.` : ''}</p>` +
     (blokken.length ? blokken.join('')
       : '<p class="empty">Nog geen preset met twee of meer sessies.</p>');
 }
