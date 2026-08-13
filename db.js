@@ -100,13 +100,18 @@ async function selectAll(build) {
   }
 }
 
-/* Alles wat de app per som moet weten: gemiddelde, recente tijd, relatieve
-   traagheid, foutratio, SRS-trede en of hij volgens de kansen-klok terug moet. */
+/* Alles wat de app per som moet weten.
+
+   expected_rel is de schatting van hoe lang je er nu over doet, in verhouding
+   tot je eigen normtijd voor dat soort som: 1,0 is precies gemiddeld. Die
+   schatting is naar het familiegemiddelde getrokken, zwaarder naarmate je
+   minder metingen hebt. predicted_rel telt daar de tijd bij op die sinds de
+   laatste keer verstreken is, en urgency zet dat af tegen je doeltijd. */
 export async function loadBoard(modes) {
   return selectAll(() => {
     let q = supabase.from('problem_board').select(
-      'problem_key,mode,g1,g2,base,display,n,n_ok,avg_ms,recent_ms,acc,' +
-      'norm_ms,relative,struggle,srs_step,opps_since,target_opps,is_due,last_seen_at,legacy'
+      'problem_key,mode,g1,g2,base,display,n,n_ok,acc,n_recent,norm_ms,' +
+      'prior_rel,expected_rel,expected_s,predicted_rel,urgency,is_due,last_seen_at,legacy'
     );
     if (modes && modes.length) q = q.in('mode', modes);
     return q;

@@ -280,15 +280,15 @@ function durLabel(limitS, elapsedS) {
 
 const activeModes = (conf = cfg) => Object.keys(MODES).filter(k => conf[k] && conf[k].on);
 
-/* Gewicht bij het vers trekken. Relatief ten opzichte van je eigen normtijd
-   voor die vorm, verhoogd bij fouten. Een onbekende som weegt als een
-   gemiddelde bekende som, zodat nieuw materiaal blijft langskomen. */
+/* Gewicht bij het vers trekken: hoe ver je voorspeld boven je doeltijd zit.
+   Fouten zitten hier al in verwerkt, want een fout antwoord telt in het model
+   als een mislukte ophaling en dus als een trage. Een onbekende som weegt als
+   een gemiddelde bekende som, zodat nieuw materiaal blijft langskomen. */
 function weightOf(key) {
   const r = board.get(key);
   if (!r || !r.n) return 2.5;
-  const rel = r.relative != null ? +r.relative : 1;
-  const err = 1 - (r.acc != null ? +r.acc : 1);
-  return Math.min(12, Math.max(0.4, rel * (1 + 2 * err) * 2.5));
+  const u = r.urgency != null ? +r.urgency : 1;
+  return Math.min(12, Math.max(0.4, u * 2.5));
 }
 
 function generate(conf) {
@@ -367,7 +367,7 @@ function startSession(drill, scopeCfg) {
   if (isDrill) {
     dueQueue = [...board.values()]
       .filter(r => r.n >= 1 && eligible(r, scope))
-      .sort((a, b) => (b.struggle ?? 0) - (a.struggle ?? 0))
+      .sort((a, b) => (b.expected_rel ?? 0) - (a.expected_rel ?? 0))
       .slice(0, 60);
     if (!dueQueue.length) {
       err.textContent = 'Nog geen historie binnen deze selectie. Doe eerst een gewone sessie.';
@@ -377,7 +377,7 @@ function startSession(drill, scopeCfg) {
     // Sommen die volgens de kansen-klok toe zijn aan een herhaling.
     dueQueue = [...board.values()]
       .filter(r => r.is_due && eligible(r, scope))
-      .sort((a, b) => (b.struggle ?? 0) - (a.struggle ?? 0));
+      .sort((a, b) => (b.urgency ?? 0) - (a.urgency ?? 0));
   }
 
   limit = +opt.dur; log = []; goed = 0; fout = 0; running = true;
@@ -669,7 +669,7 @@ async function endSession() {
 /* --------------------------------------------------------- statistieken */
 
 let tab = 'sommen';
-let sortKey = 'struggle';
+let sortKey = 'zwak';
 let filterOpen = false;
 
 const TABS = {
@@ -680,9 +680,9 @@ const TABS = {
 };
 
 const SORTS = {
-  struggle: ['zwakste eerst', (a, b) => (b.struggle ?? 0) - (a.struggle ?? 0)],
-  relative: ['meest boven je norm', (a, b) => (b.relative ?? 0) - (a.relative ?? 0)],
-  ms: ['traagst in seconden', (a, b) => (b.recent_ms ?? 0) - (a.recent_ms ?? 0)],
+  zwak:    ['zwakste eerst', (a, b) => (b.expected_rel ?? 0) - (a.expected_rel ?? 0)],
+  urgent:  ['eerst aan de beurt', (a, b) => (b.urgency ?? 0) - (a.urgency ?? 0)],
+  ms:      ['traagst in seconden', (a, b) => (b.expected_s ?? 0) - (a.expected_s ?? 0)],
   acc: ['vaakst fout', (a, b) => (a.acc ?? 1) - (b.acc ?? 1)],
   seen: ['minst gezien', (a, b) => a.n - b.n]
 };
@@ -747,18 +747,19 @@ function renderBody() {
   if (tab === 'sommen') {
     const rows = filtered();
     const list = rows
-      .filter(r => r.n >= 2 && r.relative != null)
+      .filter(r => r.n >= 1 && r.expected_rel != null)
       .sort(SORTS[sortKey][1])
       .slice(0, 40);
     $('sCount').textContent = `${rows.length} van ${board.size} sommen`;
-    body.innerHTML = `<p class="sub">Traagheid is relatief: hoeveel langzamer dan jouw eigen
-      normtijd voor dat soort som. 1,0 is precies gemiddeld.</p>
+    body.innerHTML = `<p class="sub">De schatting is hoe lang je er nú over zou doen, afgezet
+      tegen jouw eigen normtijd voor dat soort som: 1,0 is precies gemiddeld. Sommen die je
+      nog nauwelijks zag leunen op het gemiddelde van hun familie.</p>
       <div class="card">${list.length
         ? `<table><tr><th>som</th><th>keer</th><th>goed</th><th>sec</th><th>norm</th></tr>${list.map(r =>
             `<tr><td>${r.display}</td><td>${r.n}</td>
              <td>${Math.round((r.acc ?? 1) * 100)}%</td>
-             <td>${nl(r.recent_ms / 1000)}</td>
-             <td class="${r.relative >= 1.3 ? 'warm' : ''}">${nl(r.relative, 2)}</td></tr>`).join('')}</table>`
+             <td>${r.expected_s != null ? nl(r.expected_s) : '-'}</td>
+             <td class="${r.expected_rel >= 1.3 ? 'warm' : ''}">${nl(r.expected_rel, 2)}</td></tr>`).join('')}</table>`
         : '<p class="empty">Niets binnen dit filter met genoeg herhalingen.</p>'}</div>`;
 
   } else if (tab === 'families') {
@@ -789,8 +790,8 @@ function renderBody() {
       for (let b = lo; b <= hi; b++) {
         const key = a <= b ? `${a}x${b}` : `${b}x${a}`;
         const r = by.get(key);
-        const rel = r && r.relative != null ? +r.relative : null;
-        const title = r ? `${r.display}: ${nl(r.recent_ms / 1000)}s, ${r.n}x`
+        const rel = r && r.expected_rel != null ? +r.expected_rel : null;
+        const title = r ? `${r.display}: ${nl(r.expected_s)}s, ${r.n}x`
                         : `${a} x ${b}: nog niet gezien`;
         html += `<td><i style="background:${heatColor(rel)}" title="${title}"></i></td>`;
       }
