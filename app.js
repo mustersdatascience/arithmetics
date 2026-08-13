@@ -72,6 +72,7 @@ async function boot() {
   const user = await db.currentUser();
   if (!user) { show('auth'); return; }
   show('setup');
+  await refreshModel();
   await refreshBoard();
   await refreshPresets();
   syncStatus();
@@ -103,6 +104,32 @@ $('doSignup').onclick = async () => {
 };
 
 $('doLogout').onclick = async () => { await db.signOut(); show('auth'); };
+
+/* ------------------------------------------------------ modelparameters */
+
+/* Hoe snel je wil zijn voordat een som als beheerst geldt is een keuze, geen
+   meting. Die staat daarom in de database naast de gefitte waarden, zodat hij
+   op je telefoon hetzelfde is. De andere drie ijkt de app zelf. */
+let modelParams = null;
+
+async function refreshModel() {
+  try {
+    modelParams = await db.loadModelParams();
+    if (modelParams && modelParams.target != null) {
+      $('target').value = String(+modelParams.target);
+    }
+  } catch { modelParams = null; }
+}
+
+$('target').onchange = async () => {
+  try {
+    await db.saveTarget(+$('target').value);
+    await refreshModel();
+    await refreshBoard();
+  } catch (e) {
+    $('setupErr').textContent = 'Doeltijd opslaan mislukt: ' + e.message;
+  }
+};
 
 /* ---------------------------------------------------------------- bord */
 
@@ -663,6 +690,8 @@ async function endSession() {
     ? 'Nog niet opgeslagen, dit gaat vanzelf zodra je verbinding hebt.'
     : 'Opgeslagen.';
   syncStatus();
+  // ijkt de parameters bij zodra er genoeg nieuwe pogingen liggen
+  try { if (await db.maybeFitModel()) await refreshModel(); } catch { /* geeft niet */ }
   await refreshBoard();
 }
 
