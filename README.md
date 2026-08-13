@@ -111,6 +111,25 @@ Elke ijking wordt gelogd in `model_fits` met de gebruikte aantallen, en elke
 uitkomst wordt geklemd op een verdedigbaar bereik. Een model dat zichzelf
 bijstelt moet niet ongemerkt kunnen wegdrijven.
 
+### Voortgang per preset
+
+Het tabblad **Voortgang** zet per preset je aantal goede antwoorden per sessie
+naast elkaar, oudste links, met een trendlijn erover. Of die lijn stijgt of daalt
+staat er ook in woorden bij: kleur alleen is geen betrouwbare drager, en bij
+kleurenblindheid vallen brons en roest tegen elkaar weg.
+
+Een sessie hoort bij een preset zodra de **instellingen** overeenkomen — welke
+categorieën aan staan en met welke bereiken — en niet zodra je toevallig op de
+presetknop klikte. Anders zou dezelfde oefening in twee grafieken uiteenvallen.
+Sessies die bij geen enkele preset passen krijgen geen grafiek; hoeveel dat er
+zijn staat onder de toelichting. Dezelfde preset met een andere tijdslimiet
+krijgt wel een eigen grafiek, want twee minuten en vijf minuten zijn niet met
+elkaar te vergelijken.
+
+In de sessielijst kun je een sessie weggooien. Dat trekt ook af wat hij aan je
+somstatistiek bijdroeg, zodat een sessie die je na drie seconden wegklikte je
+gemiddelden niet blijft vertekenen.
+
 ### Datakwaliteit
 
 - Draai je het scherm weg of word je onderbroken, dan staat de klok stil en telt
