@@ -775,7 +775,9 @@ const SORTS = {
 };
 
 function heatColor(rel) {
-  if (rel == null) return 'var(--sunk)';
+  // nog niet gezien: een rustige vulling in de lijnkleur, zodat het als leeg
+  // vakje leest en niet als een gat in het raster
+  if (rel == null) return 'var(--line)';
   const t = Math.max(0, Math.min(1, (rel - 0.7) / 0.9));
   return `hsl(${Math.round(145 - t * 145)} 55% 45%)`;
 }
@@ -887,7 +889,7 @@ function renderBody() {
     html += '</table><div class="legend"><i style="background:' + heatColor(0.7) + '"></i>snel'
       + '<i style="background:' + heatColor(1.15) + '"></i>gemiddeld'
       + '<i style="background:' + heatColor(1.6) + '"></i>traag'
-      + '<i style="background:var(--sunk)"></i>nog niet gezien</div></div>';
+      + '<i style="background:var(--line)"></i>nog niet gezien</div></div>';
     body.innerHTML = `<p class="sub">De tafels 2 tot en met 19, gekleurd naar hoe snel je ze doet
       vergeleken met je eigen gemiddelde.</p>` + html;
 
