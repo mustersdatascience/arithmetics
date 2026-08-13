@@ -31,61 +31,44 @@ ook gegroepeerd in **families**: de tafel van 7, optellen met
 tientaloverschrijding, aftrekken met lenen, kwadraten per tiental. Daar zit
 binnen een week signaal in.
 
-### Spaced repetition op speelbeurten
+### Herhaling op reactietijd
 
-Herhalingen worden niet in dagen gepland maar in **kansen**: het aantal sommen
-dat je in die categorie beantwoordt terwijl deze som getrokken had kunnen
-worden. Een drukke dag en een rustige week verstoren elkaar daardoor niet, en
-een som veroudert niet terwijl je iets heel anders oefent.
+Alles draait op één continue grootheid: hoe lang je er naar verwachting nu over
+zou doen, uitgedrukt in verhouding tot je eigen normtijd voor dat soort som.
+De planningsregel is daarmee één zin: **laat een som zien zodra je voorspeld
+boven je doeltijd uitkomt.**
 
-De ladder loopt 12 → 30 → 80 → 200 → 500 → 1200 kansen. Goed en vlot
-beantwoord is een trede omhoog; goed maar duidelijk trager dan je eigen
-gemiddelde laat de trede staan; fout zet hem terug op nul. Trede 0 komt neer op
-"nog binnen dezelfde sessie".
+Dat is een bewuste keuze tegen de klassieke aanpak in. SM-2 en FSRS sturen op
+goed of fout, en bij hoofdrekenen heb je bijna alles goed — dat signaal staat
+dus meestal stil, terwijl snelheid juist het leerdoel is. Het model achter
+SlimStampen laat zien dat reactietijd een goede maat voor geheugensterkte is,
+en die tijd meet de app toch al bij elke som.
 
-Speeltellers kennen geen vergeten, dus als vangnet zakt alles één trede na
-zestig dagen stilte. Dat zit in de view `problem_due` en is daar aan te passen.
+Drie dingen houden het model overeind:
 
-### Na een sessie
+- **Een fout antwoord telt als een mislukte ophaling**, met een strafwaarde aan
+  de trage kant — niet als de snelle tijd waarin je het foute antwoord typte.
+  Zonder die regel zou een som die je snel en zeker fout hebt als sterk gelden,
+  en dat zijn juist de gevaarlijkste.
+- **De mediaan over je laatste vijf pogingen**, niet het gemiddelde, zodat één
+  uitschieter of typefout de schatting nauwelijks verschuift.
+- **Shrinkage naar de familie**: hoe minder eigen metingen, hoe zwaarder het
+  familiegemiddelde weegt. Dat is tegelijk de mean reversion en de oplossing
+  voor sommen die je nog nauwelijks zag. Een typefout op een som die je één keer
+  deed wordt daardoor grotendeels genegeerd.
 
-Onder de scores staan twee lijsten. **Fouten** toont per foute som wat je
-invulde en wat het juiste antwoord was. **Alle sommen** toont elke som die je
-zag mét het antwoord, de tijd erbij, foute rood. Te schakelen tussen op
-volgorde en traagste eerst. Een som die je fout deed en later in dezelfde
-sessie opnieuw kreeg staat er dus twee keer in, één keer rood en één keer niet.
+Binnen een sessie blijven speelbeurten de eenheid: een som die je fout deed komt
+twaalf sommen later terug. Tussen sessies telt verstreken tijd, want vergeten
+hangt af van hoe lang geleden het was en niet van hoeveel andere sommen je deed.
+Je werklast blijft beheersbaar doordat de sessie op urgentie gevuld wordt: veel
+tijd betekent verder in de lijst komen, weinig tijd betekent alleen het meest
+urgente.
 
-Wat je intypte wordt alleen op dit scherm gebruikt en gaat niet naar de
-database; daar staat alleen of het antwoord goed was.
-
-### Statistiekenscherm
-
-Vier tabbladen. **Zwakste sommen** heeft hetzelfde instelpaneel als een sessie:
-je vinkt categorieën aan en zet bereiken, en de lijst laat precies die sommen
-zien. Dezelfde selectie bepaalt waar de knop *Stampen met deze selectie* uit
-trekt, zodat je één categorie kunt stampen zonder de rest ertussendoor. Sorteren
-kan op zwakste, meest boven je norm, traagst in seconden, vaakst fout of minst
-gezien.
-
-**Patronen** toont families, **Tafels** de heatmap, en **Sessies** laat per
-sessie zien welke categorieën met welke bereiken aanstonden en hoe lang hij
-duurde.
-
-### Presets
-
-Naast de ingebouwde presets kun je je eigen instelling opslaan onder een naam.
-Die staan in de database en niet in localStorage, dus een preset die je op je
-laptop maakt staat ook op je telefoon. Verwijderen kan met het kruisje naast de
-naam.
-
-### Decimalen
-
-Bij oefeningen met een decimaal antwoord bepaal je zelf wanneer iets goed is.
-Kies een **vast aantal decimalen** (1 tot 4) en het antwoord telt als het op dat
-aantal afgerond klopt: bij 1 : 3 op twee decimalen is 0,33 goed en 0,3 niet.
-Omdat de app dan weet wanneer je uitgetypt bent, werkt doorgaan-zodra-het-klopt
-ook bij decimalen. Kies je in plaats daarvan een **procentuele marge**, dan lever
-je zelf in met enter of de OK-toets. Het gekozen criterium staat tijdens het
-oefenen onder het antwoord.
+Vier constanten sturen het geheel en staan als losse functies in de database, te
+wijzigen op één plek: `rt_penalty` (strafwaarde bij een fout), `rt_prior`
+(gewicht van de familie), `rt_target` (doeltijd) en `rt_decay` (hoe snel je
+wegzakt). Ze staan nu op een beredeneerde schatting en moeten geijkt worden
+zodra er een paar weken aan pogingen ligt.
 
 ### Datakwaliteit
 
@@ -95,8 +78,8 @@ oefenen onder het antwoord.
 - In de stand "doorgaan zodra het antwoord klopt" wordt een antwoord met evenveel
   cijfers als het juiste antwoord dat niet klopt als fout geteld. Zonder die
   regel werd in die stand nooit een fout geregistreerd.
-- Een stampsessie laat de kansen-klok bewust stilstaan: daar konden alleen je
-  zwakke sommen vallen, dus de rest heeft geen kans gehad.
+- Een stampsessie schrijft geen `session_modes` weg: daar konden alleen je
+  zwakke sommen vallen, dus de rest heeft geen echte beurt gehad.
 
 ## Database
 
@@ -108,14 +91,20 @@ zijn op volgorde toegepast.
 | `sessions` | één rij per sessie |
 | `session_modes` | actieve bereiken per categorie plus het aantal beantwoorde sommen; dit is de kansen-klok |
 | `attempts` | ruwe log, één rij per beantwoorde som |
-| `problem_stats` | aggregaat per som inclusief de SRS-trede |
+| `problem_stats` | aggregaat per som: hoe vaak, hoe vaak goed, opgetelde tijd |
 | `presets` | je eigen opgeslagen instellingen |
 
-Views: `problem_view`, `shape_norm`, `problem_ranked`, `problem_due`,
-`problem_board`, `problem_families`, `family_stats`. Alles draait met
-`security_invoker`, en elke tabel staat achter row level security die aan
-`auth.uid()` hangt. De sleutel in `db.js` is de publishable key en hoort
+Views: `attempt_scored`, `shape_norm`, `problem_recent`, `problem_families`,
+`family_stats`, `problem_prior` en `problem_board`. Die laatste is wat de app
+leest en bevat per som de schatting, de voorspelling en de urgentie. Alles
+draait met `security_invoker`, en elke tabel staat achter row level security die
+aan `auth.uid()` hangt. De sleutel in `db.js` is de publishable key en hoort
 publiek te zijn.
+
+Overgenomen historie uit localStorage heeft geen losse pogingen, alleen een
+totaal. `shape_norm` valt daarop terug voor vormen waar nog te weinig echte
+pogingen van zijn, en zo'n som telt mee met het aantal keren dat je hem
+werkelijk deed, tot maximaal vijf.
 
 Een sessie wordt in één transactie weggeschreven met de RPC `sync_session`.
 Die is idempotent op `client_id`, dus opnieuw sturen kan geen kwaad. Lukt het
