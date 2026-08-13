@@ -125,6 +125,9 @@ td.ans{color:var(--muted)}
 tr.wrong td.ans{color:var(--bad)}
 .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 
+/* Terugknop blijft in beeld, ook als je ver naar beneden gescrold bent. */
+.backbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0 10px}
+
 /* filterpaneel op het statistiekenscherm */
 .ctl{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .ctl select{flex:1;min-width:0}
@@ -273,11 +276,11 @@ tr.wrong td.ans{color:var(--bad)}
 
 <!-- ============ STATISTIEKEN ============ -->
 <section id="stats">
+  <div class="backbar"><button class="chip" id="sBack">← Terug</button></div>
   <div class="top"><h1>Statistieken</h1><span class="sub" id="sCount"></span></div>
   <div class="tabs" id="sTabs"></div>
   <div id="sControls"></div>
   <div id="sBody"></div>
-  <button class="btn ghost" id="sBack">Terug</button>
 </section>
 
 </div>
