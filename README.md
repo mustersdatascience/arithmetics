@@ -6,6 +6,11 @@ bewaard blijft en op al je apparaten hetzelfde is.
 De app is statisch en draait op GitHub Pages. Er is geen build-stap:
 `index.html`, `app.js`, `db.js` en `modes.js` worden rechtstreeks geserveerd.
 
+De interface draagt de kleuren van huis Atreides: groen en zwart met brons in
+het donker, perkament en zand met dezelfde groen en brons in het licht. Alles
+loopt op CSS-variabelen, dus een ander palet is een kwestie van de tokens
+bovenaan `index.html` vervangen.
+
 ## Eerste keer
 
 1. Open de pagina en maak een account aan met je e-mailadres en een wachtwoord.

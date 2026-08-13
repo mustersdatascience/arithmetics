@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Mentat">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEEFF2">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F1216">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#EFE9DB">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A1710">
 <title>Mentat</title>
 
 <!-- Alleen PNG: iOS accepteert geen SVG voor het thuisschermicoon, en de bron
@@ -18,16 +18,22 @@
 <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png">
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
+/* Huis Atreides: groen en zwart met brons. Licht is de andere helft van
+   Dune, perkament en zand, met dezelfde groen en brons erop. Vier
+   betekeniskleuren blijven onderling te onderscheiden: brons voor wat je kunt
+   aanraken, groen voor goed, roest voor aandacht, karmijn voor fout. */
 :root{
-  --bg:#EEEFF2; --panel:#FFFFFF; --ink:#12151A; --muted:#6B7280;
-  --accent:#2B5CE6; --ok:#0F8A5F; --bad:#C2352E; --line:#D6D9E0; --sunk:#E4E6EB;
-  --warm:#B8621B;
+  --bg:#EFE9DB; --panel:#F9F5EC; --ink:#16231C; --muted:#6A7268;
+  --accent:#8A6512; --on-accent:#FBF7EE;
+  --ok:#1D6B45; --bad:#9E2B24; --warm:#A34A22;
+  --line:#DDD4C2; --sunk:#E5DDCB;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#0F1216; --panel:#171B21; --ink:#E7EAEE; --muted:#8A94A3;
-    --accent:#6B8CFF; --ok:#34C38F; --bad:#FF6B63; --line:#262C34; --sunk:#11151A;
-    --warm:#E0913F;
+    --bg:#0A1710; --panel:#10231A; --ink:#E8E1CE; --muted:#8D9A8F;
+    --accent:#CFA84F; --on-accent:#0A1710;
+    --ok:#4FC08D; --bad:#F0736B; --warm:#E08050;
+    --line:#1E3528; --sunk:#0C1D15;
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -40,7 +46,7 @@ body{
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 .wrap{max-width:640px;margin:0 auto;padding:20px 16px 40px}
-h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+h1{font-size:17px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
 h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 10px}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
 .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
@@ -53,7 +59,7 @@ h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
 .chip{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:999px;
   padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit}
 .chip:hover{border-color:var(--accent)}
-.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .mode-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
 .mode-head input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .mode-name{font-weight:500;flex:1}
@@ -73,7 +79,7 @@ input[type=email],input[type=password]{
   border-radius:7px;padding:11px 12px;font-size:16px;font-family:inherit;width:100%}
 .dash{color:var(--muted)}
 .settings .frow label{flex:1}
-.btn{display:block;width:100%;background:var(--accent);color:#fff;border:none;border-radius:11px;
+.btn{display:block;width:100%;background:var(--accent);color:var(--on-accent);border:none;border-radius:11px;
   padding:15px;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:18px}
 .btn:active{opacity:.85}
 .btn:disabled{opacity:.5}
@@ -106,7 +112,7 @@ input[type=email],input[type=password]{
 .key{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;
   padding:17px 0;font-size:22px;font-family:ui-monospace,monospace;cursor:pointer;
   -webkit-tap-highlight-color:transparent;user-select:none}
-.key:active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.key:active{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .key.ok{grid-column:span 3;font-family:inherit;font-size:17px;font-weight:600;padding:14px 0}
 
 /* Alle schermen staan uit tot app.js er een aanzet. Laadt de app niet, dan
