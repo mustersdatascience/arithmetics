@@ -6,10 +6,12 @@
   "comment": "De app zelf heeft geen build-stap: index.html, app.js, db.js en modes.js worden rechtstreeks door GitHub Pages geserveerd. Deze package.json bestaat alleen om vendor/supabase.js opnieuw te kunnen bouwen.",
   "scripts": {
     "vendor": "esbuild --bundle --format=esm --minify --platform=browser --target=es2020 --legal-comments=none --outfile=vendor/supabase.js scripts/vendor-entry.js",
-    "test": "node scripts/test-modes.mjs"
+    "test": "node scripts/test-modes.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.112.3",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "playwright": "1.56.1"
   }
 }
