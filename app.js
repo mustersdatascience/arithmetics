@@ -697,6 +697,12 @@ document.addEventListener('visibilitychange', () => {
    som die je zag met het juiste antwoord erbij. */
 let resultSort = 'volgorde';
 
+/* syncDone loopt zolang de sessie wordt weggeschreven, dropped houdt bij welke
+   sessie je weggooide. Samen zorgen ze dat verwijderen en opslaan elkaar niet
+   in de weg zitten. */
+let syncDone = null;
+let dropped = '';
+
 function renderResults() {
   const antwoord = l => (l.answer == null ? '?' : fmt(l.answer));
 
@@ -751,7 +757,12 @@ async function endSession() {
   renderResults();
   show('results');
 
-  if (!log.length) { $('rSync').textContent = ''; return; }
+  const del = $('rDel');
+  del.hidden = !log.length;
+  del.disabled = false;
+  del.textContent = 'Sessie verwijderen';
+
+  if (!log.length) { $('rSync').textContent = ''; syncDone = null; return; }
 
   const payload = {
     client_id: sessionId,
@@ -776,15 +787,48 @@ async function endSession() {
   };
 
   $('rSync').textContent = 'Opslaan...';
-  const res = await db.queueSession(payload);
+  syncDone = db.queueSession(payload);
+  const res = await syncDone;
   $('rSync').textContent = res.left
     ? 'Nog niet opgeslagen, dit gaat vanzelf zodra je verbinding hebt.'
     : 'Opgeslagen.';
   syncStatus();
   // ijkt de parameters bij zodra er genoeg nieuwe pogingen liggen
   try { if (await db.maybeFitModel()) await refreshModel(); } catch { /* geeft niet */ }
+  if (dropped === payload.client_id) return;   // weggegooid; die ververst zelf
   await refreshBoard();
 }
+
+/* Weggooien kan meteen hier, zonder eerst naar de statistieken. Dit is precies
+   de sessie die je na drie seconden wegklikte: die staat vol half ingetypte
+   antwoorden en zou je gemiddelden vertekenen.
+
+   Eerst wachten tot het opslaan klaar is. Verwijderen terwijl het versturen nog
+   loopt zou de sessie er anders na afloop alsnog in zetten. */
+$('rDel').onclick = async () => {
+  if (!confirm('Deze sessie verwijderen? De sommen die je erin deed tellen ' +
+               'dan ook niet meer mee in je statistiek.')) return;
+  const b = $('rDel');
+  const id = sessionId;
+  b.disabled = true;
+  b.textContent = 'Verwijderen...';
+  dropped = id;
+  try {
+    if (syncDone) await syncDone;
+    await db.dropSession(id);
+    b.textContent = 'Verwijderd';
+    $('rSync').textContent = 'Deze sessie is verwijderd en telt niet mee.';
+    sessionCache = null;
+    syncStatus();
+    await refreshBoard();
+  } catch (e) {
+    dropped = '';
+    b.disabled = false;
+    b.textContent = 'Sessie verwijderen';
+    alert('Verwijderen mislukt: ' + e.message);
+    refreshBoard().catch(() => { /* volgende sessie haalt het opnieuw op */ });
+  }
+};
 
 /* --------------------------------------------------------- statistieken */
 

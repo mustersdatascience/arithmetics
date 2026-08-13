@@ -149,6 +149,8 @@ tr.wrong td.ans{color:var(--bad)}
 .panel.open{display:block}
 .chip.del{padding:7px 9px;color:var(--muted)}
 .chip.del:hover{border-color:var(--bad);color:var(--bad)}
+.chip:disabled,.chip:disabled:hover{opacity:.5;cursor:default;
+  border-color:var(--line);color:var(--muted)}
 
 /* voortgangsgrafieken */
 .chart{background:var(--panel);border:1px solid var(--line);border-radius:11px;
@@ -294,7 +296,9 @@ tr.wrong td.ans{color:var(--bad)}
 
 <!-- ============ RESULTAAT ============ -->
 <section id="results">
-  <div class="top"><h1>Klaar</h1><span class="sub" id="pb"></span></div>
+  <div class="top"><h1>Klaar</h1><span class="sub" id="pb"></span>
+    <button class="chip del" id="rDel" hidden
+            title="deze sessie verwijderen">Sessie verwijderen</button></div>
   <div class="big">
     <div class="stat"><div class="v" id="rGoed">0</div><div class="l">goed</div></div>
     <div class="stat"><div class="v" id="rTempo">0</div><div class="l">per minuut</div></div>
