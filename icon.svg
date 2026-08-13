@@ -1,52 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
   <!-- Mentat, in de kleuren van huis Atreides: groen en zwart met brons.
-       De naam is het hoofdelement, want die moet leesbaar blijven; de vier
-       bewerkingen staan er als band boven zodat meteen duidelijk is waar de
-       app over gaat.
+       De vier bewerkingen staan in de vier kwadranten als een schaakbord, met
+       de naam er dwars doorheen. De hoeken blijven daardoor vrij voor de tekens
+       en het midden voor de naam, die tot op zestig pixels leesbaar moet zijn.
 
-       Dit bestand is de bron. Het wordt uitgerenderd naar PNG (scripts/make-icons.mjs),
-       en alleen die PNG's worden uitgeleverd, zodat de weergave niet afhangt van
-       welke letterfamilie een toestel toevallig heeft. -->
+       Dit bestand is de bron. Het wordt uitgerenderd naar PNG met
+       `npm run icons`, en alleen die PNG's worden uitgeleverd, zodat de
+       weergave niet afhangt van welke letterfamilie een toestel heeft. -->
   <defs>
-    <linearGradient id="ground" x1="0.1" y1="0" x2="0.75" y2="1">
-      <stop offset="0"    stop-color="#1A4A34"/>
-      <stop offset="0.48" stop-color="#0E2C1F"/>
-      <stop offset="1"    stop-color="#05100B"/>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#18452F"/>
+      <stop offset="0.5"  stop-color="#0D2A1D"/>
+      <stop offset="1"    stop-color="#06150E"/>
     </linearGradient>
-    <radialGradient id="sheen" cx="0.3" cy="0.14" r="0.85">
-      <stop offset="0" stop-color="#5FD39B" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="#5FD39B" stop-opacity="0"/>
-    </radialGradient>
   </defs>
 
   <rect width="180" height="180" fill="url(#ground)"/>
-  <rect width="180" height="180" fill="url(#sheen)"/>
 
-  <!-- de vier bewerkingen, klein en in brons -->
+  <!-- schaakbord: twee tegenoverliggende velden nauwelijks lichter, net genoeg
+       om het patroon te laten zien zonder dat het klein formaat onrustig wordt -->
+  <g fill="#8FE9BE" opacity="0.09">
+    <rect x="0"  y="0"  width="90" height="90"/>
+    <rect x="90" y="90" width="90" height="90"/>
+  </g>
+
+  <!-- de vier bewerkingen, één per kwadrant -->
   <g fill="#C9A24A">
-    <!-- plus -->
-    <rect x="27"   y="45.75" width="17"  height="4.5" rx="2.25"/>
-    <rect x="33.25" y="39.5" width="4.5"  height="17" rx="2.25"/>
-    <!-- min -->
-    <rect x="63"   y="45.75" width="17"  height="4.5" rx="2.25"/>
-    <!-- deelteken -->
-    <rect x="136"  y="45.75" width="17"  height="4.5" rx="2.25"/>
-    <circle cx="144.5" cy="40" r="2.9"/>
-    <circle cx="144.5" cy="56" r="2.9"/>
+    <!-- plus, linksboven -->
+    <rect x="33"    y="42.25" width="24"  height="5.5" rx="2.75"/>
+    <rect x="42.25" y="33"    width="5.5" height="24"  rx="2.75"/>
+    <!-- min, rechtsboven -->
+    <rect x="123"   y="42.25" width="24"  height="5.5" rx="2.75"/>
+    <!-- deelteken, rechtsonder -->
+    <rect x="123"   y="132.25" width="24" height="5.5" rx="2.75"/>
+    <circle cx="135" cy="124.5" r="3.5"/>
+    <circle cx="135" cy="145.5" r="3.5"/>
   </g>
-  <!-- keer -->
-  <g fill="#C9A24A" transform="rotate(45 108 48)">
-    <rect x="99.5"  y="45.75" width="17" height="4.5" rx="2.25"/>
-    <rect x="105.75" y="39.5" width="4.5" height="17" rx="2.25"/>
+  <!-- keer, linksonder -->
+  <g fill="#C9A24A" transform="rotate(45 45 135)">
+    <rect x="33"    y="132.25" width="24"  height="5.5" rx="2.75"/>
+    <rect x="42.25" y="123"    width="5.5" height="24"  rx="2.75"/>
   </g>
 
-  <!-- heraldische regel onder de tekens -->
-  <rect x="24" y="74" width="132" height="1.6" fill="#C9A24A" opacity="0.55"/>
-
-  <!-- de naam -->
-  <text x="90" y="130" text-anchor="middle" textLength="142" lengthAdjust="spacingAndGlyphs"
+  <!-- de naam, dwars door het midden -->
+  <rect x="14" y="70" width="152" height="1.4" fill="#C9A24A" opacity="0.5"/>
+  <text x="90" y="102" text-anchor="middle" textLength="140" lengthAdjust="spacingAndGlyphs"
         font-family="Liberation Sans, DejaVu Sans, sans-serif" font-weight="700"
-        font-size="43" letter-spacing="1" fill="#EFE3C4">MENTAT</text>
-
-  <rect x="24" y="146" width="132" height="1.6" fill="#C9A24A" opacity="0.55"/>
+        font-size="40" letter-spacing="1" fill="#EFE3C4">MENTAT</text>
+  <rect x="14" y="109" width="152" height="1.4" fill="#C9A24A" opacity="0.5"/>
 </svg>
