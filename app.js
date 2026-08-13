@@ -14,30 +14,50 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return k in mem ? mem[k] : d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { mem[k] = v; } }
 };
+const clone = o => JSON.parse(JSON.stringify(o));
+/* Nederlandse schrijfwijze: 24,0 in plaats van 24.0 */
+const nl = (n, d = 1) => (Number(n) || 0).toFixed(d).replace('.', ',');
 
 /* board: problem_key -> rij uit problem_board. Leeg tot je ingelogd bent. */
 let board = new Map();
 let families = [];
+let customPresets = [];
 
 /* ---------------------------------------------------------- instellingen */
 
-let cfg = store.get('rt_cfg', null);
-if (!cfg) {
-  cfg = {};
+/* Vult ontbrekende modi en velden aan, zodat een opgeslagen configuratie na
+   een update van de app niet stukloopt. */
+function fillGaps(conf, wide) {
   for (const k in MODES) {
-    cfg[k] = { on: 0 };
-    MODES[k].fields.forEach(([f, , lo, hi]) => cfg[k][f] = [lo, hi]);
-    (MODES[k].selects || []).forEach(([s, , v]) => cfg[k][s] = v[0]);
+    conf[k] = conf[k] || { on: wide ? 1 : 0 };
+    MODES[k].fields.forEach(([f, , lo, hi]) => {
+      if (!Array.isArray(conf[k][f])) conf[k][f] = wide ? [1, 9999] : [lo, hi];
+    });
+    (MODES[k].selects || []).forEach(([s, , v]) => {
+      if (conf[k][s] == null) conf[k][s] = wide ? 0 : v[0];
+    });
   }
-  Object.assign(cfg, JSON.parse(JSON.stringify(PRESETS.zetamac.cfg)));
-}
-for (const k in MODES) {   // gaten vullen na een update
-  cfg[k] = cfg[k] || { on: 0 };
-  MODES[k].fields.forEach(([f, , lo, hi]) => { if (!Array.isArray(cfg[k][f])) cfg[k][f] = [lo, hi]; });
-  (MODES[k].selects || []).forEach(([s, , v]) => { if (cfg[k][s] == null) cfg[k][s] = v[0]; });
+  return conf;
 }
 
+let cfg = store.get('rt_cfg', null);
+if (!cfg) {
+  cfg = fillGaps({}, false);
+  Object.assign(cfg, clone(PRESETS.zetamac.cfg));
+}
+fillGaps(cfg, false);
+
+/* Het filter op het statistiekenscherm begint bewust wijd: je wil daar eerst
+   alles zien wat je ooit gedaan hebt, en dan zelf inzoomen. */
+let filterCfg = fillGaps(store.get('rt_filter', null) || {}, true);
+
 const opt = store.get('rt_opt', { dur: 120, weighted: 1, auto: 1, tol: 1, pad: 'auto', preset: '' });
+
+// begininstelling meteen vastleggen, zodat wat je ziet ook is wat er opgeslagen staat
+store.set('rt_cfg', cfg);
+store.set('rt_filter', filterCfg);
+store.set('rt_opt', opt);
+
 ['dur', 'weighted', 'auto', 'tol', 'pad'].forEach(k => {
   $(k).value = opt[k];
   $(k).onchange = () => { opt[k] = $(k).value; store.set('rt_opt', opt); };
@@ -53,6 +73,7 @@ async function boot() {
   if (!user) { show('auth'); return; }
   show('setup');
   await refreshBoard();
+  await refreshPresets();
   syncStatus();
   db.flushOutbox().then(syncStatus);
 }
@@ -105,32 +126,81 @@ function syncStatus() {
     : 'gesynchroniseerd';
 }
 
-/* ------------------------------------------------------- setup renderen */
+/* ------------------------------------------------------------- presets */
+
+async function refreshPresets() {
+  try { customPresets = await db.loadPresets(); } catch { customPresets = []; }
+  renderPresets();
+}
+
+function applyPreset(conf, dur, label) {
+  for (const k in cfg) cfg[k].on = 0;
+  const c = clone(conf);
+  for (const k in c) if (cfg[k]) Object.assign(cfg[k], c[k]);
+  if (dur != null) { opt.dur = String(dur); $('dur').value = opt.dur; }
+  opt.preset = label;
+  store.set('rt_cfg', cfg); store.set('rt_opt', opt);
+  renderModes();
+}
 
 function renderPresets() {
-  $('presets').innerHTML = '';
+  const box = $('presets'); box.innerHTML = '';
+
   for (const p in PRESETS) {
     const b = document.createElement('button');
     b.className = 'chip'; b.textContent = PRESETS[p].label;
-    b.onclick = () => {
-      for (const k in cfg) cfg[k].on = 0;
-      const c = JSON.parse(JSON.stringify(PRESETS[p].cfg));
-      for (const k in c) Object.assign(cfg[k], c[k]);
-      opt.dur = String(PRESETS[p].dur); $('dur').value = opt.dur;
-      opt.preset = PRESETS[p].label;
-      store.set('rt_cfg', cfg); store.set('rt_opt', opt);
-      renderModes();
+    b.onclick = () => applyPreset(PRESETS[p].cfg, PRESETS[p].dur, PRESETS[p].label);
+    box.appendChild(b);
+  }
+
+  for (const p of customPresets) {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = p.name;
+    b.onclick = () => applyPreset(p.config, p.limit_s, p.name);
+    box.appendChild(b);
+
+    const x = document.createElement('button');
+    x.className = 'chip del'; x.textContent = '×';
+    x.title = `${p.name} verwijderen`;
+    x.onclick = async () => {
+      if (!confirm(`Preset "${p.name}" verwijderen?`)) return;
+      try { await db.deletePreset(p.id); await refreshPresets(); }
+      catch (e) { alert('Verwijderen mislukt: ' + e.message); }
     };
-    $('presets').appendChild(b);
+    box.appendChild(x);
   }
 }
 
-function renderModes() {
-  const box = $('modes'); box.innerHTML = '';
+$('savePreset').onclick = async () => {
+  const on = activeModes();
+  if (!on.length) { $('setupErr').textContent = 'Zet eerst een oefening aan.'; return; }
+  const name = (prompt('Naam voor deze preset?') || '').trim();
+  if (!name) return;
+  // alleen de aangezette modi bewaren, net als bij de ingebouwde presets
+  const conf = Object.fromEntries(on.map(k => [k, clone(cfg[k])]));
+  try {
+    await db.savePreset(name, conf, +opt.dur);
+    opt.preset = name; store.set('rt_opt', opt);
+    await refreshPresets();
+  } catch (e) {
+    alert('Opslaan mislukt: ' + e.message);
+  }
+};
+
+/* ------------------------------------------------------- setup renderen */
+
+/* Eén renderer voor de modus-kaarten, gebruikt door zowel de oefeninstellingen
+   als het filter op het statistiekenscherm. In het filter mag een keuzelijst
+   ook "alle" zijn, wat als 0 wordt opgeslagen. */
+function renderModeCards(box, conf, { onChange, anyBase = false } = {}) {
+  box.innerHTML = '';
+  const changed = () => { if (onChange) onChange(); };
+
   for (const k in MODES) {
-    const m = MODES[k], c = cfg[k];
+    const m = MODES[k], c = conf[k];
     const card = document.createElement('div');
     card.className = 'card' + (c.on ? ' on' : '');
+
     const head = document.createElement('label');
     head.className = 'mode-head';
     head.innerHTML = `<input type="checkbox" ${c.on ? 'checked' : ''}>
@@ -138,10 +208,10 @@ function renderModes() {
     head.querySelector('input').onchange = e => {
       c.on = e.target.checked ? 1 : 0;
       card.classList.toggle('on', !!c.on);
-      opt.preset = ''; store.set('rt_opt', opt);
-      store.set('rt_cfg', cfg);
+      changed();
     };
     card.appendChild(head);
+
     const f = document.createElement('div'); f.className = 'fields';
     m.fields.forEach(([key, label]) => {
       const row = document.createElement('div'); row.className = 'frow';
@@ -153,27 +223,62 @@ function renderModes() {
       const save = () => {
         const a = +lo.value || 0, b = +hi.value || 0;
         c[key] = [Math.min(a, b), Math.max(a, b)];
-        opt.preset = ''; store.set('rt_opt', opt); store.set('rt_cfg', cfg);
+        changed();
       };
       lo.onchange = save; hi.onchange = save;
       f.appendChild(row);
     });
+
     (m.selects || []).forEach(([key, label, vals]) => {
       const row = document.createElement('div'); row.className = 'frow';
-      row.innerHTML = `<label>${label}</label><select>${vals.map(v =>
-        `<option value="${v}" ${c[key] == v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-      row.querySelector('select').onchange = e => {
-        c[key] = +e.target.value; store.set('rt_cfg', cfg);
-      };
+      const options = (anyBase ? [[0, 'alle']] : []).concat(vals.map(v => [v, v]));
+      row.innerHTML = `<label>${label}</label><select>${options.map(([v, t]) =>
+        `<option value="${v}" ${c[key] == v ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+      row.querySelector('select').onchange = e => { c[key] = +e.target.value; changed(); };
       f.appendChild(row);
     });
+
     card.appendChild(f); box.appendChild(card);
   }
 }
 
+function renderModes() {
+  renderModeCards($('modes'), cfg, {
+    onChange: () => {
+      opt.preset = '';
+      store.set('rt_opt', opt);
+      store.set('rt_cfg', cfg);
+    }
+  });
+}
+
+/* Leesbare omschrijving van een configuratie, voor het sessieoverzicht. */
+function describeConfig(conf) {
+  const out = [];
+  for (const k in (conf || {})) {
+    const c = conf[k], m = MODES[k];
+    if (!c || !c.on || !m) continue;
+    const ranges = m.fields
+      .map(([n]) => Array.isArray(c[n]) ? `${c[n][0]}-${c[n][1]}` : null)
+      .filter(Boolean).join(' × ');
+    const sel = (m.selects || [])
+      .map(([n]) => c[n] ? `tot ${c[n]}` : null).filter(Boolean).join(' ');
+    out.push(`${m.label} ${[ranges, sel].filter(Boolean).join(' ')}`.trim());
+  }
+  return out;
+}
+
+function durLabel(limitS, elapsedS) {
+  if (limitS > 0) {
+    return limitS % 60 === 0 ? `${limitS / 60} min` : `${limitS} sec`;
+  }
+  const s = Math.round(+elapsedS || 0);
+  return s >= 60 ? `${Math.round(s / 60)} min, geen limiet` : `${s} sec, geen limiet`;
+}
+
 /* ------------------------------------------------------------- trekking */
 
-const activeModes = () => Object.keys(MODES).filter(k => cfg[k].on);
+const activeModes = (conf = cfg) => Object.keys(MODES).filter(k => conf[k] && conf[k].on);
 
 /* Gewicht bij het vers trekken. Relatief ten opzichte van je eigen normtijd
    voor die vorm, verhoogd bij fouten. Een onbekende som weegt als een
@@ -186,9 +291,9 @@ function weightOf(key) {
   return Math.min(12, Math.max(0.4, rel * (1 + 2 * err) * 2.5));
 }
 
-function generate() {
-  const modes = activeModes();
-  const make = () => { const k = pick(modes); const q = MODES[k].gen(cfg[k]); q.mode = k; return q; };
+function generate(conf) {
+  const modes = activeModes(conf);
+  const make = () => { const k = pick(modes); const q = MODES[k].gen(conf[k]); q.mode = k; return q; };
   if (opt.weighted !== '1' && opt.weighted !== 1) return make();
   const cands = [make(), make(), make(), make(), make(), make()];
   const w = cands.map(c => weightOf(c.key));
@@ -214,7 +319,7 @@ let cur = null, typed = '', t0 = 0, tStart = 0, limit = 0, timer = null;
 let log = [], goed = 0, fout = 0, running = false, answered = 0;
 let modeCounts = {}, localDue = [], dueQueue = [], isDrill = false;
 let hiddenAt = 0, interrupted = false, sessionId = '';
-let pendingTimeout = null;
+let pendingTimeout = null, scope = null;
 
 function wantPad() {
   if (opt.pad === '1') return true;
@@ -243,30 +348,38 @@ function buildPad() {
   $('keypad').appendChild(ok);
 }
 
-function startSession(drill) {
-  const modes = activeModes();
-  if (!modes.length) { $('setupErr').textContent = 'Zet minstens één oefening aan.'; return; }
+/* drill: alleen je zwakste sommen. scopeCfg beperkt waaruit getrokken wordt;
+   zo kun je gericht één categorie stampen in plaats van alles door elkaar. */
+function startSession(drill, scopeCfg) {
+  scope = scopeCfg || cfg;
+  const modes = activeModes(scope);
+  // foutmelding op het scherm waar je vandaan kwam, niet altijd bij de instellingen
+  const onStats = $('stats').style.display === 'block';
+  const err = (onStats && $('sErr')) || $('setupErr');
+  err.textContent = '';
+  if (!modes.length) {
+    err.textContent = 'Zet minstens één oefening aan.';
+    return;
+  }
 
   isDrill = !!drill;
   dueQueue = [];
   if (isDrill) {
-    // Alleen sommen die je al eens zag, gesorteerd op struggle-score.
     dueQueue = [...board.values()]
-      .filter(r => r.n >= 1 && eligible(r, cfg))
+      .filter(r => r.n >= 1 && eligible(r, scope))
       .sort((a, b) => (b.struggle ?? 0) - (a.struggle ?? 0))
       .slice(0, 60);
     if (!dueQueue.length) {
-      $('setupErr').textContent = 'Nog te weinig historie om te stampen. Doe eerst een gewone sessie.';
+      err.textContent = 'Nog geen historie binnen deze selectie. Doe eerst een gewone sessie.';
       return;
     }
   } else {
     // Sommen die volgens de kansen-klok toe zijn aan een herhaling.
     dueQueue = [...board.values()]
-      .filter(r => r.is_due && eligible(r, cfg))
+      .filter(r => r.is_due && eligible(r, scope))
       .sort((a, b) => (b.struggle ?? 0) - (a.struggle ?? 0));
   }
 
-  $('setupErr').textContent = '';
   limit = +opt.dur; log = []; goed = 0; fout = 0; running = true;
   answered = 0; modeCounts = {}; localDue = []; interrupted = false; hiddenAt = 0;
   sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -284,7 +397,7 @@ function tick() {
   const el = (Date.now() - tStart) / 1000;
   if (limit > 0) {
     const left = Math.max(0, limit - el);
-    $('clock').textContent = left >= 10 ? Math.ceil(left) : left.toFixed(1);
+    $('clock').textContent = left >= 10 ? Math.ceil(left) : nl(left);
     $('fill').style.width = (left / limit * 100) + '%';
     if (left <= 0) endSession();
   } else {
@@ -308,7 +421,21 @@ function nextQuestion() {
     if (q) { if (isDrill) dueQueue.push(row); return { ...q, due: true }; }
   }
   // 3. Anders vers trekken.
-  return generate();
+  return generate(scope);
+}
+
+/* Hoeveel decimalen moet je geven voordat een antwoord goed gerekend wordt?
+   null betekent: beoordeel met een procentuele marge. */
+function decimalsRequired() {
+  const m = String(opt.tol).match(/^d(\d)$/);
+  return m ? +m[1] : null;
+}
+
+function tolLabel() {
+  const d = decimalsRequired();
+  if (d != null) return `op ${d} ${d === 1 ? 'decimaal' : 'decimalen'}`;
+  const t = +opt.tol;
+  return t > 0 ? `marge ${String(t).replace('.', ',')} procent` : 'exact';
 }
 
 function askNew() {
@@ -317,11 +444,14 @@ function askNew() {
   $('q').textContent = cur.q;
   $('a').textContent = ''; $('a').className = 'a mono';
   $('flash').textContent = '';
+  $('hint').textContent = cur.dec ? tolLabel() : '';
   $('srsTag').textContent = cur.repeat ? 'nogmaals' : cur.due ? 'herhaling' : '';
 }
 
 function fmt(n) {
   if (Number.isInteger(n)) return String(n);
+  const d = decimalsRequired();
+  if (d != null) return n.toFixed(d).replace('.', ',');
   return String(Math.round(n * 10000) / 10000).replace('.', ',');
 }
 
@@ -330,8 +460,14 @@ function correct(v) {
   const num = parseFloat(String(v).replace(',', '.'));
   if (isNaN(num)) return false;
   if (!cur.dec) return num === cur.ans;
+
+  const d = decimalsRequired();
+  // Afronden op een vast aantal decimalen: allebei de kanten door dezelfde
+  // functie halen, dan zijn afrondingsgrillen van floats voor beide gelijk.
+  if (d != null) return num.toFixed(d) === cur.ans.toFixed(d);
+
   const tol = +opt.tol / 100;
-  if (tol === 0) return Math.abs(num - cur.ans) < 1e-9;
+  if (!(tol > 0)) return Math.abs(num - cur.ans) < 1e-9;
   return Math.abs(num - cur.ans) <= Math.max(Math.abs(cur.ans) * tol, 1e-9);
 }
 
@@ -399,12 +535,22 @@ function press(k) {
   $('flash').textContent = '';
 
   const auto = (opt.auto === '1' || opt.auto === 1);
-  if (auto && !cur.dec && typed !== '') {
+  if (!auto || typed === '') return;
+
+  if (cur.dec) {
+    // Met een vast aantal decimalen weten we wanneer je klaar bent met typen,
+    // dus dan kan doorgaan-zodra-het-klopt ook bij decimale antwoorden.
+    const d = decimalsRequired();
+    if (d == null) return;
     if (correct(typed)) { finish(true); return; }
-    // Evenveel cijfers als het juiste antwoord en toch niet goed: dat is een
-    // fout. Zonder deze regel werd in deze stand nooit een fout geregistreerd.
-    if (typed.replace('-', '').length >= String(cur.ans).length) { finish(false); return; }
+    if ((typed.split(',')[1] || '').length >= d) { finish(false); return; }
+    return;
   }
+
+  if (correct(typed)) { finish(true); return; }
+  // Evenveel cijfers als het juiste antwoord en toch niet goed: dat is een
+  // fout. Zonder deze regel werd in deze stand nooit een fout geregistreerd.
+  if (typed.replace('-', '').length >= String(cur.ans).length) finish(false);
 }
 
 document.addEventListener('keydown', e => {
@@ -439,7 +585,7 @@ async function endSession() {
   const acc = log.length ? Math.round(goed / log.length * 100) : 0;
 
   $('rGoed').textContent = goed;
-  $('rTempo').textContent = tempo.toFixed(1);
+  $('rTempo').textContent = nl(tempo);
   $('rAcc').textContent = acc + '%';
   $('pb').textContent = isDrill ? 'stampsessie' : '';
 
@@ -451,7 +597,7 @@ async function endSession() {
   const slow = scored.filter(l => l.ok).sort((a, b) => b.ms - a.ms).slice(0, 8);
   $('rSlow').innerHTML = slow.length
     ? `<table><tr><th>som</th><th>seconden</th></tr>${slow.map(l =>
-        `<tr><td>${l.display}</td><td>${(l.ms / 1000).toFixed(1)}</td></tr>`).join('')}</table>`
+        `<tr><td>${l.display}</td><td>${nl(l.ms / 1000)}</td></tr>`).join('')}</table>`
     : '<p class="empty">Nog niks om te tonen.</p>';
 
   show('results');
@@ -461,18 +607,18 @@ async function endSession() {
   const payload = {
     client_id: sessionId,
     kind: isDrill ? 'drill' : 'practice',
-    preset: opt.preset || '',
+    preset: isDrill ? '' : (opt.preset || ''),
     started_at: new Date(tStart).toISOString(),
     ended_at: new Date().toISOString(),
     limit_s: limit,
     elapsed_s: +secs.toFixed(2),
     n_correct: goed,
     n_wrong: fout,
-    config: Object.fromEntries(activeModes().map(k => [k, cfg[k]])),
+    config: Object.fromEntries(activeModes(scope).map(k => [k, scope[k]])),
     // Een stampsessie laat de kansen-klok bewust stilstaan: daar konden alleen
     // je zwakke sommen vallen, dus de rest heeft geen kans gehad.
-    modes: isDrill ? [] : activeModes().map(k => ({
-      mode: k, ...MODES[k].range(cfg[k]),
+    modes: isDrill ? [] : activeModes(scope).map(k => ({
+      mode: k, ...MODES[k].range(scope[k]),
       swappable: !!MODES[k].swappable,
       answered: modeCounts[k] || 0
     })),
@@ -491,6 +637,8 @@ async function endSession() {
 /* --------------------------------------------------------- statistieken */
 
 let tab = 'sommen';
+let sortKey = 'struggle';
+let filterOpen = false;
 
 const TABS = {
   sommen: 'Zwakste sommen',
@@ -499,41 +647,90 @@ const TABS = {
   sessies: 'Sessies'
 };
 
+const SORTS = {
+  struggle: ['zwakste eerst', (a, b) => (b.struggle ?? 0) - (a.struggle ?? 0)],
+  relative: ['meest boven je norm', (a, b) => (b.relative ?? 0) - (a.relative ?? 0)],
+  ms: ['traagst in seconden', (a, b) => (b.recent_ms ?? 0) - (a.recent_ms ?? 0)],
+  acc: ['vaakst fout', (a, b) => (a.acc ?? 1) - (b.acc ?? 1)],
+  seen: ['minst gezien', (a, b) => a.n - b.n]
+};
+
 function heatColor(rel) {
   if (rel == null) return 'var(--sunk)';
   const t = Math.max(0, Math.min(1, (rel - 0.7) / 0.9));
   return `hsl(${Math.round(145 - t * 145)} 55% 45%)`;
 }
 
-async function renderStats() {
-  $('sTabs').innerHTML = '';
-  for (const k in TABS) {
-    const b = document.createElement('button');
-    b.className = 'chip' + (tab === k ? ' on' : '');
-    b.textContent = TABS[k];
-    b.onclick = () => { tab = k; renderStats(); };
-    $('sTabs').appendChild(b);
-  }
+/* De sommen die binnen het filter vallen. */
+function filtered() {
+  return [...board.values()].filter(r => eligible(r, filterCfg));
+}
 
-  const rows = [...board.values()];
-  $('sCount').textContent = rows.length ? `${rows.length} sommen bekend` : '';
+function renderControls() {
+  const box = $('sControls');
+  if (tab !== 'sommen') { box.innerHTML = ''; return; }
+
+  box.innerHTML = `
+    <div class="ctl">
+      <select id="sSort">${Object.entries(SORTS).map(([k, [label]]) =>
+        `<option value="${k}" ${sortKey === k ? 'selected' : ''}>${label}</option>`).join('')}</select>
+      <button class="chip ${filterOpen ? 'on' : ''}" id="sToggle">Filter</button>
+    </div>
+    <div class="panel ${filterOpen ? 'open' : ''}" id="sPanel">
+      <p class="sub">Kies precies zoals bij het instellen van een sessie welke sommen
+        je hier wil zien. Dit bepaalt ook waar de stampsessie uit trekt.</p>
+      <div id="sFilterBox"></div>
+      <div class="ctl" style="margin-top:10px">
+        <button class="chip" id="sFromCfg">Overnemen uit oefeninstellingen</button>
+        <button class="chip" id="sAll">Alles</button>
+      </div>
+      <button class="btn" id="sDrill">Stampen met deze selectie</button>
+      <p class="err" id="sErr"></p>
+    </div>`;
+
+  $('sSort').onchange = e => { sortKey = e.target.value; renderStats(); };
+  $('sToggle').onclick = () => { filterOpen = !filterOpen; renderStats(); };
+
+  renderModeCards($('sFilterBox'), filterCfg, {
+    anyBase: true,
+    onChange: () => { store.set('rt_filter', filterCfg); renderBody(); }
+  });
+
+  $('sFromCfg').onclick = () => {
+    for (const k in MODES) filterCfg[k] = clone(cfg[k]);
+    store.set('rt_filter', filterCfg);
+    renderStats();
+  };
+  $('sAll').onclick = () => {
+    filterCfg = fillGaps({}, true);
+    store.set('rt_filter', filterCfg);
+    renderStats();
+  };
+  $('sDrill').onclick = () => startSession(true, filterCfg);
+}
+
+function renderBody() {
   const body = $('sBody');
 
   if (tab === 'sommen') {
+    const rows = filtered();
     const list = rows
       .filter(r => r.n >= 2 && r.relative != null)
-      .sort((a, b) => (b.struggle ?? 0) - (a.struggle ?? 0))
-      .slice(0, 30);
-    body.innerHTML = `<p class="sub">Gesorteerd op hoeveel trager dan jouw eigen normtijd voor
-      dat soort som, zwaarder gewogen als je hem ook fout doet. 1,0 is precies gemiddeld.</p>
+      .sort(SORTS[sortKey][1])
+      .slice(0, 40);
+    $('sCount').textContent = `${rows.length} van ${board.size} sommen`;
+    body.innerHTML = `<p class="sub">Traagheid is relatief: hoeveel langzamer dan jouw eigen
+      normtijd voor dat soort som. 1,0 is precies gemiddeld.</p>
       <div class="card">${list.length
-        ? `<table><tr><th>som</th><th>keer</th><th>sec</th><th>t.o.v. norm</th></tr>${list.map(r =>
+        ? `<table><tr><th>som</th><th>keer</th><th>goed</th><th>sec</th><th>norm</th></tr>${list.map(r =>
             `<tr><td>${r.display}</td><td>${r.n}</td>
-             <td>${(r.recent_ms / 1000).toFixed(1)}</td>
-             <td class="${r.relative >= 1.3 ? 'warm' : ''}">${(+r.relative).toFixed(2)}</td></tr>`).join('')}</table>`
-        : '<p class="empty">Nog te weinig herhalingen. Doe eerst een paar sessies.</p>'}</div>`;
+             <td>${Math.round((r.acc ?? 1) * 100)}%</td>
+             <td>${nl(r.recent_ms / 1000)}</td>
+             <td class="${r.relative >= 1.3 ? 'warm' : ''}">${nl(r.relative, 2)}</td></tr>`).join('')}</table>`
+        : '<p class="empty">Niets binnen dit filter met genoeg herhalingen.</p>'}</div>`;
 
   } else if (tab === 'families') {
+    $('sCount').textContent = `${board.size} sommen bekend`;
     const list = [...families]
       .filter(f => f.n_attempts >= 5)
       .sort((a, b) => (b.avg_relative ?? 0) - (a.avg_relative ?? 0))
@@ -541,17 +738,16 @@ async function renderStats() {
     body.innerHTML = `<p class="sub">Losse sommen zie je zelden twee keer, groepen wel.
       Hier zit je patroon: een hele tafel, sommen met tientaloverschrijding, een reeks kwadraten.</p>
       <div class="card">${list.length
-        ? `<table><tr><th>groep</th><th>sommen</th><th>sec</th><th>t.o.v. norm</th></tr>${list.map(f =>
+        ? `<table><tr><th>groep</th><th>sommen</th><th>sec</th><th>norm</th></tr>${list.map(f =>
             `<tr><td>${f.label}</td><td>${f.n_problems}</td>
-             <td>${(f.median_ms / 1000).toFixed(1)}</td>
-             <td class="${f.avg_relative >= 1.2 ? 'warm' : ''}">${(+f.avg_relative).toFixed(2)}</td></tr>`).join('')}</table>`
+             <td>${nl(f.median_ms / 1000)}</td>
+             <td class="${f.avg_relative >= 1.2 ? 'warm' : ''}">${nl(f.avg_relative, 2)}</td></tr>`).join('')}</table>`
         : '<p class="empty">Nog te weinig data voor groepen.</p>'}</div>`;
 
   } else if (tab === 'tafels') {
+    $('sCount').textContent = `${board.size} sommen bekend`;
     const by = new Map();
-    rows.filter(r => r.mode === 'mul').forEach(r => {
-      by.set(`${r.g1}x${r.g2}`, r);
-    });
+    [...board.values()].filter(r => r.mode === 'mul').forEach(r => by.set(`${r.g1}x${r.g2}`, r));
     const lo = 2, hi = 19;
     let html = '<div class="heat"><table><tr><th></th>';
     for (let b = lo; b <= hi; b++) html += `<th>${b}</th>`;
@@ -562,7 +758,8 @@ async function renderStats() {
         const key = a <= b ? `${a}x${b}` : `${b}x${a}`;
         const r = by.get(key);
         const rel = r && r.relative != null ? +r.relative : null;
-        const title = r ? `${r.display}: ${(r.recent_ms / 1000).toFixed(1)}s, ${r.n}x` : `${a} x ${b}: nog niet gezien`;
+        const title = r ? `${r.display}: ${nl(r.recent_ms / 1000)}s, ${r.n}x`
+                        : `${a} x ${b}: nog niet gezien`;
         html += `<td><i style="background:${heatColor(rel)}" title="${title}"></i></td>`;
       }
       html += '</tr>';
@@ -575,17 +772,42 @@ async function renderStats() {
       vergeleken met je eigen gemiddelde.</p>` + html;
 
   } else {
-    let list = [];
-    try { list = await db.loadSessions(30); } catch { /* offline */ }
-    body.innerHTML = `<div class="card">${list.length
-      ? `<table><tr><th>wanneer</th><th>goed</th><th>per min</th></tr>${list.map(s => {
-          const secs = +s.elapsed_s || s.limit_s || 0;
-          const tempo = secs > 0 ? (s.n_correct / secs * 60).toFixed(1) : '-';
-          return `<tr><td>${new Date(s.started_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}${s.kind === 'drill' ? ' *' : ''}</td>
-            <td>${s.n_correct}</td><td>${tempo}</td></tr>`;
-        }).join('')}</table><p class="sub" style="margin-top:8px">* stampsessie</p>`
-      : '<p class="empty">Nog geen sessies.</p>'}</div>`;
+    body.innerHTML = '<p class="empty">Laden...</p>';
+    db.loadSessions(40).then(list => {
+      $('sCount').textContent = list.length ? `${list.length} sessies` : '';
+      body.innerHTML = list.length ? list.map(s => {
+        const secs = +s.elapsed_s || s.limit_s || 0;
+        const tempo = secs > 0 ? nl(s.n_correct / secs * 60) : '-';
+        const total = s.n_correct + s.n_wrong;
+        const acc = total ? Math.round(s.n_correct / total * 100) : 0;
+        const what = describeConfig(s.config);
+        const when = new Date(s.started_at).toLocaleString('nl-NL',
+          { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        return `<div class="sess">
+          <div class="when"><span>${when}</span>
+            <span>${durLabel(s.limit_s, s.elapsed_s)}${s.kind === 'drill' ? ' · stampen' : ''}</span></div>
+          <div class="what">${what.length
+            ? what.map(w => `<span>${w}</span>`).join('')
+            : '<span class="empty">geen categorieën vastgelegd</span>'}</div>
+          <div class="nums">${s.n_correct} goed · ${tempo} per minuut · ${acc}% accuraat${
+            s.preset ? ` · ${s.preset}` : ''}</div>
+        </div>`;
+      }).join('') : '<p class="empty">Nog geen sessies.</p>';
+    }).catch(() => { body.innerHTML = '<p class="empty">Sessies laden mislukt.</p>'; });
   }
+}
+
+function renderStats() {
+  $('sTabs').innerHTML = '';
+  for (const k in TABS) {
+    const b = document.createElement('button');
+    b.className = 'chip' + (tab === k ? ' on' : '');
+    b.textContent = TABS[k];
+    b.onclick = () => { tab = k; renderStats(); };
+    $('sTabs').appendChild(b);
+  }
+  renderControls();
+  renderBody();
 }
 
 /* ------------------------------------------------------------- knoppen */
@@ -593,7 +815,7 @@ async function renderStats() {
 $('start').onclick = () => startSession(false);
 $('drill').onclick = () => startSession(true);
 $('stop').onclick = endSession;
-$('again').onclick = () => startSession(isDrill);
+$('again').onclick = () => startSession(isDrill, scope);
 $('back').onclick = () => { renderModes(); show('setup'); };
 $('sBack').onclick = () => show('setup');
 

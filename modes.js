@@ -92,10 +92,15 @@ export const MODES = {
     label: 'Complementen', hint: 'aanvullen tot een rond getal', swappable: false,
     fields: [['n', 'Bereik', 2, 99]],
     selects: [['base', 'Basis', [100, 1000, 10000]]],
-    range: c => ({
-      lo1: c.n[0], hi1: Math.min(c.n[1], +c.base - 1),
-      lo2: null, hi2: null, base: +c.base
-    }),
+    // base 0 betekent "elke basis"; dat komt alleen uit het statistiekfilter,
+    // een echte sessie heeft altijd 100, 1000 of 10000
+    range: c => {
+      const b = +c.base || 0;
+      return {
+        lo1: c.n[0], hi1: b ? Math.min(c.n[1], b - 1) : c.n[1],
+        lo2: null, hi2: null, base: b || null
+      };
+    },
     gen(c) {
       const b = +c.base, n = rnd(c.n[0], Math.min(c.n[1], b - 1));
       return { q: `${b} - ${n}`, ans: b - n, key: `compl${b}:${n}`, g1: n, g2: null, base: b };
