@@ -1,4 +1,4 @@
-# Rekentrainer
+# Mentat
 
 Hoofdrekenoefeningen met een centrale database, zodat je oefengeschiedenis
 bewaard blijft en op al je apparaten hetzelfde is.

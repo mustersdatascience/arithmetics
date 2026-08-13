@@ -6,9 +6,17 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Rekenen">
-<meta name="theme-color" content="#EEEFF2">
-<title>Rekentrainer</title>
+<meta name="apple-mobile-web-app-title" content="Mentat">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEEFF2">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F1216">
+<title>Mentat</title>
+
+<!-- iOS gebruikt geen SVG voor het thuisschermicoon, dus die moet als PNG.
+     De afgeronde hoeken zet het toestel er zelf omheen. -->
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png">
+<link rel="manifest" href="./manifest.webmanifest">
 <style>
 :root{
   --bg:#EEEFF2; --panel:#FFFFFF; --ink:#12151A; --muted:#6B7280;
@@ -163,7 +171,7 @@ tr.wrong td.ans{color:var(--bad)}
 
 <!-- ============ INLOGGEN ============ -->
 <section id="auth">
-  <div class="top"><h1>Rekentrainer</h1></div>
+  <div class="top"><h1>Mentat</h1></div>
   <p class="sub">Log in zodat je oefengeschiedenis op al je apparaten hetzelfde is.</p>
   <div class="card" style="margin-top:16px">
     <div class="frow"><input type="email" id="email" placeholder="e-mailadres" autocomplete="username"></div>
@@ -177,7 +185,7 @@ tr.wrong td.ans{color:var(--bad)}
 
 <!-- ============ SETUP ============ -->
 <section id="setup">
-  <div class="top"><h1>Rekentrainer</h1><span class="sub" id="totalDone"></span></div>
+  <div class="top"><h1>Mentat</h1><span class="sub" id="totalDone"></span></div>
   <div class="status"><span class="dot" id="syncDot"></span><span id="syncText"></span></div>
 
   <h2>Presets</h2>
