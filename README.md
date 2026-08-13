@@ -126,9 +126,16 @@ zijn staat onder de toelichting. Dezelfde preset met een andere tijdslimiet
 krijgt wel een eigen grafiek, want twee minuten en vijf minuten zijn niet met
 elkaar te vergelijken.
 
-In de sessielijst kun je een sessie weggooien. Dat trekt ook af wat hij aan je
-somstatistiek bijdroeg, zodat een sessie die je na drie seconden wegklikte je
-gemiddelden niet blijft vertekenen.
+Een sessie weggooien kan op twee plekken: in de sessielijst, en meteen op het
+resultaatscherm zodra je klaar bent. Dat laatste is voor de sessie die je na drie
+seconden wegklikte — die hoef je dan niet eerst in de statistieken op te zoeken.
+Weggooien trekt ook af wat de sessie aan je somstatistiek bijdroeg, zodat je
+gemiddelden er niet door vertekend blijven.
+
+Staat de sessie nog in de wachtrij omdat je geen verbinding had, dan wordt hij
+daar weggehaald en heeft de database hem nooit gezien. Verwijderen terwijl het
+opslaan nog loopt kan ook: de app wacht dat eerst af, anders zou de sessie er na
+afloop alsnog in komen te staan.
 
 ### Datakwaliteit
 

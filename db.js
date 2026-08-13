@@ -142,6 +142,27 @@ export async function deleteSession(id) {
   if (error) throw error;
 }
 
+/* Hetzelfde, maar met het id dat de app zelf aan de sessie gaf. Nodig op het
+   resultaatscherm: daar is de sessie net weggestuurd en weet de app de sleutel
+   uit de database nog niet.
+
+   Staat hij nog in de wachtrij, dan wordt hij daar weggehaald en heeft de
+   database hem nooit gezien. Is hij al verstuurd, dan gaat ook zijn bijdrage
+   aan je somstatistiek er weer af. Allebei kan: verwijderen terwijl er nog
+   oudere sessies voor hem in de rij staan. */
+export async function dropSession(clientId) {
+  const box = readOutbox();
+  const left = box.filter(p => p.client_id !== clientId);
+  const uitRij = left.length !== box.length;
+  if (uitRij) writeOutbox(left);
+
+  const { data, error } = await supabase
+    .from('sessions').select('id').eq('client_id', clientId).maybeSingle();
+  if (error) throw error;
+  if (data) await deleteSession(data.id);
+  return { uitRij, uitDatabase: !!data };
+}
+
 /* ------------------------------------------------------- modelparameters */
 
 export async function loadModelParams() {
