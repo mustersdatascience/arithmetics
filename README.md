@@ -46,6 +46,17 @@ gemiddelde laat de trede staan; fout zet hem terug op nul. Trede 0 komt neer op
 Speeltellers kennen geen vergeten, dus als vangnet zakt alles één trede na
 zestig dagen stilte. Dat zit in de view `problem_due` en is daar aan te passen.
 
+### Na een sessie
+
+Onder de scores staan twee lijsten. **Fouten** toont per foute som wat je
+invulde en wat het juiste antwoord was. **Alle sommen** toont elke som die je
+zag mét het antwoord, de tijd erbij, foute rood. Te schakelen tussen op
+volgorde en traagste eerst. Een som die je fout deed en later in dezelfde
+sessie opnieuw kreeg staat er dus twee keer in, één keer rood en één keer niet.
+
+Wat je intypte wordt alleen op dit scherm gebruikt en gaat niet naar de
+database; daar staat alleen of het antwoord goed was.
+
 ### Statistiekenscherm
 
 Vier tabbladen. **Zwakste sommen** heeft hetzelfde instelpaneel als een sessie:
