@@ -64,11 +64,31 @@ Je werklast blijft beheersbaar doordat de sessie op urgentie gevuld wordt: veel
 tijd betekent verder in de lijst komen, weinig tijd betekent alleen het meest
 urgente.
 
-Vier constanten sturen het geheel en staan als losse functies in de database, te
-wijzigen op één plek: `rt_penalty` (strafwaarde bij een fout), `rt_prior`
-(gewicht van de familie), `rt_target` (doeltijd) en `rt_decay` (hoe snel je
-wegzakt). Ze staan nu op een beredeneerde schatting en moeten geijkt worden
-zodra er een paar weken aan pogingen ligt.
+### Parameters die zichzelf ijken
+
+Vier waarden sturen het model. Twee ervan stelt de app zelf bij op je eigen
+historie, zodra er genoeg nieuwe pogingen liggen:
+
+- `rt_penalty` — hoe traag je in werkelijkheid blijkt te zijn bij de
+  eerstvolgende keer ná een fout antwoord. Die tijd ís precies wat een fout
+  voorspelde.
+- `rt_prior` — de variantie binnen een som gedeeld door de variantie tussen
+  sommen: de standaard empirische-Bayes-schatter voor hoe zwaar de familie moet
+  meewegen.
+
+`rt_target` is geen meting maar een keuze — hoe snel wil je zijn voordat een som
+als beheerst geldt — en staat als instelling in de app.
+
+`rt_decay` wordt bewust **niet** automatisch bijgesteld. Bij validatie tegen
+gesimuleerde data met een bekende waarde bleek deze niet betrouwbaar te schatten:
+reactietijden op één som variëren van keer tot keer sterker dan het effect van
+een paar weken niet oefenen, waardoor de foutcurve over een breed bereik vlak
+blijft. De app schat hem wel en legt de uitkomst met de spreiding vast in
+`model_fits`, zodat dat oordeel bij meer data te herzien is.
+
+Elke ijking wordt gelogd in `model_fits` met de gebruikte aantallen, en elke
+uitkomst wordt geklemd op een verdedigbaar bereik. Een model dat zichzelf
+bijstelt moet niet ongemerkt kunnen wegdrijven.
 
 ### Datakwaliteit
 
@@ -93,6 +113,8 @@ zijn op volgorde toegepast.
 | `attempts` | ruwe log, één rij per beantwoorde som |
 | `problem_stats` | aggregaat per som: hoe vaak, hoe vaak goed, opgetelde tijd |
 | `presets` | je eigen opgeslagen instellingen |
+| `model_params` | de vier parameters van het herhaalmodel |
+| `model_fits` | logboek van elke ijking, met de gebruikte aantallen |
 
 Views: `attempt_scored`, `shape_norm`, `problem_recent`, `problem_families`,
 `family_stats`, `problem_prior` en `problem_board`. Die laatste is wat de app

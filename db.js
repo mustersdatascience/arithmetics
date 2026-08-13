@@ -132,6 +132,44 @@ export async function loadSessions(limit = 60) {
   return data;
 }
 
+/* ------------------------------------------------------- modelparameters */
+
+export async function loadModelParams() {
+  const { data, error } = await supabase
+    .from('model_params')
+    .select('penalty,prior,decay,target,fitted_at,n_attempts')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/* De doeltijd is geen meting maar jouw keuze: hoe snel wil je zijn voordat een
+   som als beheerst geldt. Lager betekent vaker herhalen. */
+export async function saveTarget(target) {
+  const user = await currentUser();
+  if (!user) throw new Error('niet ingelogd');
+  const { error } = await supabase.from('model_params')
+    .upsert({ user_id: user.id, target, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+/* IJkt de parameters opnieuw op je eigen historie, maar alleen als er genoeg
+   nieuwe pogingen bij zijn gekomen. Vaker heeft geen zin en kost alleen tijd. */
+export async function maybeFitModel(minNew = 150) {
+  const { count, error } = await supabase
+    .from('attempts').select('id', { count: 'exact', head: true });
+  if (error || count == null) return null;
+
+  let params = null;
+  try { params = await loadModelParams(); } catch { /* nog geen rij */ }
+  if (params && count - (params.n_attempts || 0) < minNew) return null;
+
+  const { data, error: fitError } = await supabase.rpc('fit_model_params');
+  if (fitError) return null;
+  return data;
+}
+
 /* ---------------------------------------------------------- eigen presets */
 
 export async function loadPresets() {
