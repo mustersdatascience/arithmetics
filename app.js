@@ -763,8 +763,65 @@ const TABS = {
   sommen: 'Zwakste sommen',
   families: 'Patronen',
   tafels: 'Tafels',
+  voortgang: 'Voortgang',
   sessies: 'Sessies'
 };
+
+/* Sessies uit de database, één keer opgehaald en hergebruikt door zowel het
+   voortgangstabblad als de sessielijst. */
+let sessionCache = null;
+
+async function ensureSessions(force) {
+  if (!sessionCache || force) {
+    try { sessionCache = await db.loadSessions(300); } catch { sessionCache = []; }
+  }
+  return sessionCache;
+}
+
+/* Een staafdiagram per sessie met een trendlijn erover.
+
+   De staven dragen de meting, de lijn vat de richting samen. Die lijn is
+   bewust de inktkleur en niet groen of rood: het accent van de app is brons,
+   en een warme statuskleur is daar voor kleurenblinde lezers niet van te
+   onderscheiden. De richting staat daarom in het bijschrift, in woorden. */
+function trendChart(values) {
+  const n = values.length;
+  const W = 320, H = 96, top = 12, base = 82, gap = 2, pad = 2;
+  const max = Math.max(...values, 1);
+  const bw = Math.max(1.5, (W - pad * 2 - (n - 1) * gap) / n);
+  const xAt = i => pad + i * (bw + gap);
+  const yAt = v => base - (v / (max * 1.08)) * (base - top);
+
+  const bars = values.map((v, i) => {
+    const x = xAt(i), y = yAt(v), h = base - y;
+    const r = Math.min(4, bw / 2, h);
+    return `<path d="M${x} ${base} L${x} ${y + r} Q${x} ${y} ${x + r} ${y}
+      L${x + bw - r} ${y} Q${x + bw} ${y} ${x + bw} ${y + r} L${x + bw} ${base} Z"
+      fill="var(--accent)"/>`;
+  }).join('');
+
+  // kleinste-kwadratenlijn; pas vanaf vier sessies zegt die iets
+  let lijn = '', richting = null;
+  if (n >= 4) {
+    const mx = (n - 1) / 2;
+    const my = values.reduce((a, b) => a + b, 0) / n;
+    let num = 0, den = 0;
+    values.forEach((v, i) => { num += (i - mx) * (v - my); den += (i - mx) ** 2; });
+    const slope = den ? num / den : 0;
+    const at = i => my + slope * (i - mx);
+    const clamp = y => Math.max(top, Math.min(base, y));
+    lijn = `<line x1="${xAt(0) + bw / 2}" y1="${clamp(yAt(at(0)))}"
+             x2="${xAt(n - 1) + bw / 2}" y2="${clamp(yAt(at(n - 1)))}"
+             stroke="var(--ink)" stroke-width="2" stroke-linecap="round" opacity="0.7"/>`;
+    const rel = my > 0 ? (slope * (n - 1)) / my : 0;
+    richting = { slope, rel, label: rel > 0.05 ? 'stijgend' : rel < -0.05 ? 'dalend' : 'vlak' };
+  }
+
+  return { svg: `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+      role="img" aria-label="resultaat per sessie">
+      <line x1="0" y1="${base}" x2="${W}" y2="${base}"
+            stroke="var(--line)" stroke-width="1"/>${bars}${lijn}</svg>`, richting, max };
+}
 
 const SORTS = {
   zwak:    ['zwakste eerst', (a, b) => (b.expected_rel ?? 0) - (a.expected_rel ?? 0)],
@@ -893,30 +950,110 @@ function renderBody() {
     body.innerHTML = `<p class="sub">De tafels 2 tot en met 19, gekleurd naar hoe snel je ze doet
       vergeleken met je eigen gemiddelde.</p>` + html;
 
+  } else if (tab === 'voortgang') {
+    body.innerHTML = '<p class="empty">Laden...</p>';
+    ensureSessions().then(list => renderVoortgang(list));
+
   } else {
     body.innerHTML = '<p class="empty">Laden...</p>';
-    db.loadSessions(40).then(list => {
-      $('sCount').textContent = list.length ? `${list.length} sessies` : '';
-      body.innerHTML = list.length ? list.map(s => {
-        const secs = +s.elapsed_s || s.limit_s || 0;
-        const tempo = secs > 0 ? nl(s.n_correct / secs * 60) : '-';
-        const total = s.n_correct + s.n_wrong;
-        const acc = total ? Math.round(s.n_correct / total * 100) : 0;
-        const what = describeConfig(s.config);
-        const when = new Date(s.started_at).toLocaleString('nl-NL',
-          { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-        return `<div class="sess">
-          <div class="when"><span>${when}</span>
-            <span>${durLabel(s.limit_s, s.elapsed_s)}${s.kind === 'drill' ? ' · stampen' : ''}</span></div>
-          <div class="what">${what.length
-            ? what.map(w => `<span>${w}</span>`).join('')
-            : '<span class="empty">geen categorieën vastgelegd</span>'}</div>
-          <div class="nums">${s.n_correct} goed · ${tempo} per minuut · ${acc}% accuraat${
-            s.preset ? ` · ${s.preset}` : ''}</div>
-        </div>`;
-      }).join('') : '<p class="empty">Nog geen sessies.</p>';
-    }).catch(() => { body.innerHTML = '<p class="empty">Sessies laden mislukt.</p>'; });
+    ensureSessions().then(list => renderSessies(list))
+      .catch(() => { body.innerHTML = '<p class="empty">Sessies laden mislukt.</p>'; });
   }
+}
+
+/* Eén grafiek per preset. Sessies met dezelfde preset maar een andere duur
+   krijgen een eigen grafiek, want twee minuten en vijf minuten zijn niet met
+   elkaar te vergelijken. Sessies zonder limiet worden per minuut geteld. */
+function renderVoortgang(list) {
+  const groepen = new Map();
+  for (const s of list) {
+    if (s.kind === 'drill') continue;                 // stampen is een ander spel
+    const naam = s.preset || 'Eigen instelling';
+    const key = `${naam}||${s.limit_s}`;
+    if (!groepen.has(key)) groepen.set(key, { naam, limit: s.limit_s, rijen: [] });
+    groepen.get(key).rijen.push(s);
+  }
+
+  const blokken = [...groepen.values()]
+    .filter(g => g.rijen.length >= 2)
+    .map(g => {
+      g.rijen.sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+      const perMin = g.limit === 0;
+      const waarden = g.rijen.map(s => {
+        if (!perMin) return s.n_correct;
+        const m = (+s.elapsed_s || 0) / 60;
+        return m > 0 ? +(s.n_correct / m).toFixed(1) : 0;
+      });
+      const { svg, richting, max } = trendChart(waarden);
+      const gem = waarden.reduce((a, b) => a + b, 0) / waarden.length;
+      const eenheid = perMin ? 'goed per minuut' : 'goed';
+      const laatste = waarden[waarden.length - 1];
+      const trend = richting
+        ? `<span class="${richting.label === 'stijgend' ? 'up'
+            : richting.label === 'dalend' ? 'down' : ''}">${richting.label}</span>` +
+          (richting.label === 'vlak' ? ''
+            : `, ${richting.slope > 0 ? '+' : ''}${nl(richting.slope)} per sessie`)
+        : '<span class="sub">nog te weinig sessies voor een lijn</span>';
+      return `<div class="chart">
+        <div class="chart-head">
+          <span class="chart-title">${g.naam}</span>
+          <span class="sub">${perMin ? 'geen limiet · per minuut' : durLabel(g.limit, 0)}</span>
+        </div>
+        ${svg}
+        <div class="chart-foot">
+          <span>${g.rijen.length} sessies · laatst ${nl(laatste, perMin ? 1 : 0)} ·
+            beste ${nl(max, perMin ? 1 : 0)} · gemiddeld ${nl(gem, perMin ? 1 : 0)} ${eenheid}</span>
+          <span>${trend}</span>
+        </div>
+      </div>`;
+    });
+
+  $('sCount').textContent = `${blokken.length} preset${blokken.length === 1 ? '' : 's'}`;
+  $('sBody').innerHTML = `<p class="sub">Per preset hoeveel je goed had, oudste sessie links.
+    De lijn is de trend over al je sessies met die preset.</p>` +
+    (blokken.length ? blokken.join('')
+      : '<p class="empty">Nog geen preset met twee of meer sessies.</p>');
+}
+
+function renderSessies(list) {
+  $('sCount').textContent = list.length ? `${list.length} sessies` : '';
+  $('sBody').innerHTML = list.length ? list.map(s => {
+    const secs = +s.elapsed_s || s.limit_s || 0;
+    const tempo = secs > 0 ? nl(s.n_correct / secs * 60) : '-';
+    const total = s.n_correct + s.n_wrong;
+    const acc = total ? Math.round(s.n_correct / total * 100) : 0;
+    const what = describeConfig(s.config);
+    const when = new Date(s.started_at).toLocaleString('nl-NL',
+      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return `<div class="sess">
+      <div class="when"><span>${when}</span>
+        <span>${durLabel(s.limit_s, s.elapsed_s)}${s.kind === 'drill' ? ' · stampen' : ''}
+          <button class="chip del sessdel" data-id="${s.id}"
+                  title="deze sessie verwijderen">×</button></span></div>
+      <div class="what">${what.length
+        ? what.map(w => `<span>${w}</span>`).join('')
+        : '<span class="empty">geen categorieën vastgelegd</span>'}</div>
+      <div class="nums">${s.n_correct} goed · ${tempo} per minuut · ${acc}% accuraat${
+        s.preset ? ` · ${s.preset}` : ''}</div>
+    </div>`;
+  }).join('') : '<p class="empty">Nog geen sessies.</p>';
+
+  $('sBody').querySelectorAll('.sessdel').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('Deze sessie verwijderen? De sommen die je erin deed tellen ' +
+                   'dan ook niet meer mee in je statistiek.')) return;
+      b.disabled = true;
+      try {
+        await db.deleteSession(b.dataset.id);
+        await ensureSessions(true);
+        await refreshBoard();
+        renderBody();
+      } catch (e) {
+        b.disabled = false;
+        alert('Verwijderen mislukt: ' + e.message);
+      }
+    };
+  });
 }
 
 function renderStats() {

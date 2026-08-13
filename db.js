@@ -124,7 +124,7 @@ export async function loadFamilies() {
   return selectAll(() => supabase.from('family_stats').select('*'));
 }
 
-export async function loadSessions(limit = 60) {
+export async function loadSessions(limit = 300) {
   const { data, error } = await supabase
     .from('sessions')
     .select('id,started_at,elapsed_s,limit_s,n_correct,n_wrong,preset,kind,config')
@@ -132,6 +132,14 @@ export async function loadSessions(limit = 60) {
     .limit(limit);
   if (error) throw error;
   return data;
+}
+
+/* Gooit een sessie weg inclusief wat hij aan je somstatistiek bijdroeg. Nodig
+   voor sessies die je na een paar seconden wegklikt: die staan vol gehaaste
+   antwoorden en vertekenen je gemiddelden. */
+export async function deleteSession(id) {
+  const { error } = await supabase.rpc('delete_session', { p_session_id: id });
+  if (error) throw error;
 }
 
 /* ------------------------------------------------------- modelparameters */
