@@ -485,7 +485,9 @@ function record(ok, ms) {
     problem_key: cur.key, mode: cur.mode, g1: cur.g1, g2: cur.g2, base: cur.base ?? null,
     display: canon, swappable: !!MODES[cur.mode].swappable,
     answer: Number.isFinite(cur.ans) ? cur.ans : null,
-    ms, ok, outlier, asked_at: new Date(t0).toISOString()
+    ms, ok, outlier, asked_at: new Date(t0).toISOString(),
+    // wat je intypte; alleen voor het resultaatscherm, gaat niet naar de database
+    given: typed
   });
 
   answered++;
@@ -573,6 +575,41 @@ document.addEventListener('visibilitychange', () => {
 
 /* ------------------------------------------------------------ afronden */
 
+/* Het resultaatscherm: eerst je fouten met wat je invulde ernaast, daarna elke
+   som die je zag met het juiste antwoord erbij. */
+let resultSort = 'volgorde';
+
+function renderResults() {
+  const antwoord = l => (l.answer == null ? '?' : fmt(l.answer));
+
+  const fouten = log.filter(l => !l.ok);
+  $('rMistakes').innerHTML = fouten.length
+    ? `<h2>Fouten</h2><div class="card"><table>
+        <tr><th>som</th><th>jij</th><th>juist</th></tr>
+        ${fouten.map(l => `<tr class="wrong"><td>${l.display}</td>
+          <td>${l.given || '—'}</td><td>${antwoord(l)}</td></tr>`).join('')}
+       </table></div>`
+    : '';
+
+  $('rSort').textContent = resultSort === 'traag' ? 'op volgorde' : 'traagste eerst';
+  const rows = resultSort === 'traag' ? [...log].sort((a, b) => b.ms - a.ms) : log;
+
+  $('rAll').innerHTML = rows.length
+    ? `<table><tr><th>som</th><th>antwoord</th><th>sec</th></tr>${rows.map(l =>
+        `<tr class="${!l.ok ? 'wrong' : l.outlier ? 'skipped' : ''}">
+           <td>${l.display}</td><td class="ans">${antwoord(l)}</td>
+           <td>${nl(l.ms / 1000)}${l.outlier ? ' *' : ''}</td></tr>`).join('')}</table>
+       ${log.some(l => l.outlier)
+         ? '<p class="sub" style="margin-top:8px">* onderbroken, telt niet mee in je gemiddelden</p>'
+         : ''}`
+    : '<p class="empty">Geen antwoorden.</p>';
+}
+
+$('rSort').onclick = () => {
+  resultSort = resultSort === 'traag' ? 'volgorde' : 'traag';
+  renderResults();
+};
+
 async function endSession() {
   if (!running) return;
   running = false;
@@ -580,7 +617,6 @@ async function endSession() {
   if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null; }
 
   const secs = limit > 0 ? Math.min(limit, (Date.now() - tStart) / 1000) : (Date.now() - tStart) / 1000;
-  const scored = log.filter(l => !l.outlier);
   const tempo = secs > 0 ? (goed / secs * 60) : 0;
   const acc = log.length ? Math.round(goed / log.length * 100) : 0;
 
@@ -594,12 +630,7 @@ async function endSession() {
     `<i class="${l.ok ? '' : 'bad'}" style="height:${Math.max(4, l.ms / max * 66)}px" title="${l.display}"></i>`
   ).join('') || '<span class="empty">geen antwoorden</span>';
 
-  const slow = scored.filter(l => l.ok).sort((a, b) => b.ms - a.ms).slice(0, 8);
-  $('rSlow').innerHTML = slow.length
-    ? `<table><tr><th>som</th><th>seconden</th></tr>${slow.map(l =>
-        `<tr><td>${l.display}</td><td>${nl(l.ms / 1000)}</td></tr>`).join('')}</table>`
-    : '<p class="empty">Nog niks om te tonen.</p>';
-
+  renderResults();
   show('results');
 
   if (!log.length) { $('rSync').textContent = ''; return; }
@@ -622,7 +653,8 @@ async function endSession() {
       swappable: !!MODES[k].swappable,
       answered: modeCounts[k] || 0
     })),
-    attempts: log
+    // given is alleen voor het resultaatscherm en hoort niet in de payload
+    attempts: log.map(({ given, ...rest }) => rest)
   };
 
   $('rSync').textContent = 'Opslaan...';

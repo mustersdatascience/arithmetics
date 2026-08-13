@@ -119,6 +119,10 @@ td{padding:7px 0;border-top:1px solid var(--line);font-family:ui-monospace,monos
 td:last-child,th:last-child{text-align:right}
 .empty{color:var(--muted);font-size:14px;padding:14px 0;text-align:center}
 .warm{color:var(--warm)}
+tr.wrong td{color:var(--bad)}
+tr.skipped td{color:var(--muted)}
+td.ans{color:var(--muted)}
+tr.wrong td.ans{color:var(--bad)}
 .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 
 /* filterpaneel op het statistiekenscherm */
@@ -258,8 +262,10 @@ td:last-child,th:last-child{text-align:right}
   <h2>Ritme</h2>
   <div class="strip" id="strip"></div>
   <p class="sub" style="margin-top:6px">Elke balk is een som. Hoger is trager. Rood is fout.</p>
-  <h2>Traagste sommen deze sessie</h2>
-  <div class="card"><div id="rSlow"></div></div>
+  <div id="rMistakes"></div>
+  <h2>Alle sommen</h2>
+  <div class="ctl"><button class="chip" id="rSort">traagste eerst</button></div>
+  <div class="card"><div id="rAll"></div></div>
   <p class="note" id="rSync"></p>
   <button class="btn" id="again">Nog een keer</button>
   <button class="btn ghost" id="back">Terug naar instellingen</button>
