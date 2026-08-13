@@ -157,10 +157,17 @@ gaat hij mee zodra er weer verbinding is.
 ## Ontwikkelen
 
 ```sh
-npm install        # alleen nodig om vendor/supabase.js opnieuw te bouwen
+npm install        # alleen nodig voor de scripts hieronder
 npm test           # controleert de somgeneratoren
 npm run vendor     # bundelt supabase-js opnieuw naar vendor/supabase.js
+npm run icons      # rendert icon.svg naar de PNG's voor iOS, Android en de tab
 ```
+
+`icon.svg` is de bron van het app-icoon, in de kleuren van huis Atreides. iOS
+accepteert geen SVG voor het thuisschermicoon en de bron bevat tekst, dus alleen
+de uitgerenderde PNG's worden uitgeleverd: die zien er overal hetzelfde uit,
+ongeacht welke letterfamilie een toestel heeft. Pas je het icoon aan, draai dan
+`npm run icons` en commit de PNG's mee.
 
 `vendor/supabase.js` staat bewust in de repo in plaats van op een CDN: zo laadt
 de app zonder derde partij en blijft hij werken zonder bereik.

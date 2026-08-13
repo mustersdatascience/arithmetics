@@ -1,42 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
-  <!-- Mentat. De vier rekenkundige bewerkingen in vier kwadranten: leesbaar tot
-       op een thuisscherm van zestig pixels, en meteen duidelijk waar de app over
-       gaat. Alles is vorm, geen tekst, zodat het overal identiek rendert. -->
+  <!-- Mentat, in de kleuren van huis Atreides: groen en zwart met brons.
+       De naam is het hoofdelement, want die moet leesbaar blijven; de vier
+       bewerkingen staan er als band boven zodat meteen duidelijk is waar de
+       app over gaat.
+
+       Dit bestand is de bron. Het wordt uitgerenderd naar PNG (scripts/make-icons.mjs),
+       en alleen die PNG's worden uitgeleverd, zodat de weergave niet afhangt van
+       welke letterfamilie een toestel toevallig heeft. -->
   <defs>
-    <linearGradient id="ground" x1="0" y1="0" x2="0.55" y2="1">
-      <stop offset="0"   stop-color="#1D2431"/>
-      <stop offset="0.55" stop-color="#12161E"/>
-      <stop offset="1"   stop-color="#0B0E13"/>
+    <linearGradient id="ground" x1="0.1" y1="0" x2="0.75" y2="1">
+      <stop offset="0"    stop-color="#1A4A34"/>
+      <stop offset="0.48" stop-color="#0E2C1F"/>
+      <stop offset="1"    stop-color="#05100B"/>
     </linearGradient>
-    <radialGradient id="sheen" cx="0.26" cy="0.19" r="0.88">
-      <stop offset="0" stop-color="#5C7BFF" stop-opacity="0.17"/>
-      <stop offset="1" stop-color="#5C7BFF" stop-opacity="0"/>
+    <radialGradient id="sheen" cx="0.3" cy="0.14" r="0.85">
+      <stop offset="0" stop-color="#5FD39B" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#5FD39B" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
   <rect width="180" height="180" fill="url(#ground)"/>
-
-  <!-- zachte lichtinval linksboven; als verloop en niet als vorm, anders zie je
-       de rand van de cirkel als een lijn over het vlak lopen -->
   <rect width="180" height="180" fill="url(#sheen)"/>
 
-  <g fill="#EDF0F5">
-    <!-- plus, linksboven -->
-    <rect x="37"    y="50.25" width="34"  height="7.5" rx="3.75"/>
-    <rect x="50.25" y="37"    width="7.5" height="34"  rx="3.75"/>
-
-    <!-- min, rechtsboven -->
-    <rect x="109"   y="50.25" width="34"  height="7.5" rx="3.75"/>
-
-    <!-- deelteken, rechtsonder -->
-    <rect x="109"   y="122.25" width="34" height="7.5" rx="3.75"/>
-    <circle cx="126" cy="112" r="4.7"/>
-    <circle cx="126" cy="140" r="4.7"/>
+  <!-- de vier bewerkingen, klein en in brons -->
+  <g fill="#C9A24A">
+    <!-- plus -->
+    <rect x="27"   y="45.75" width="17"  height="4.5" rx="2.25"/>
+    <rect x="33.25" y="39.5" width="4.5"  height="17" rx="2.25"/>
+    <!-- min -->
+    <rect x="63"   y="45.75" width="17"  height="4.5" rx="2.25"/>
+    <!-- deelteken -->
+    <rect x="136"  y="45.75" width="17"  height="4.5" rx="2.25"/>
+    <circle cx="144.5" cy="40" r="2.9"/>
+    <circle cx="144.5" cy="56" r="2.9"/>
+  </g>
+  <!-- keer -->
+  <g fill="#C9A24A" transform="rotate(45 108 48)">
+    <rect x="99.5"  y="45.75" width="17" height="4.5" rx="2.25"/>
+    <rect x="105.75" y="39.5" width="4.5" height="17" rx="2.25"/>
   </g>
 
-  <!-- keer, linksonder, in het accent van de app zodat er één rustpunt is -->
-  <g fill="#5C7BFF" transform="rotate(45 54 126)">
-    <rect x="37"    y="122.25" width="34"  height="7.5" rx="3.75"/>
-    <rect x="50.25" y="109"    width="7.5" height="34"  rx="3.75"/>
-  </g>
+  <!-- heraldische regel onder de tekens -->
+  <rect x="24" y="74" width="132" height="1.6" fill="#C9A24A" opacity="0.55"/>
+
+  <!-- de naam -->
+  <text x="90" y="130" text-anchor="middle" textLength="142" lengthAdjust="spacingAndGlyphs"
+        font-family="Liberation Sans, DejaVu Sans, sans-serif" font-weight="700"
+        font-size="43" letter-spacing="1" fill="#EFE3C4">MENTAT</text>
+
+  <rect x="24" y="146" width="132" height="1.6" fill="#C9A24A" opacity="0.55"/>
 </svg>
