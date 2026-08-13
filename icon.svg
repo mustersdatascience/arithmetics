@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <!-- Mentat. De vier rekenkundige bewerkingen in vier kwadranten: leesbaar tot
+       op een thuisscherm van zestig pixels, en meteen duidelijk waar de app over
+       gaat. Alles is vorm, geen tekst, zodat het overal identiek rendert. -->
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0"   stop-color="#1D2431"/>
+      <stop offset="0.55" stop-color="#12161E"/>
+      <stop offset="1"   stop-color="#0B0E13"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.26" cy="0.19" r="0.88">
+      <stop offset="0" stop-color="#5C7BFF" stop-opacity="0.17"/>
+      <stop offset="1" stop-color="#5C7BFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="180" height="180" fill="url(#ground)"/>
+
+  <!-- zachte lichtinval linksboven; als verloop en niet als vorm, anders zie je
+       de rand van de cirkel als een lijn over het vlak lopen -->
+  <rect width="180" height="180" fill="url(#sheen)"/>
+
+  <g fill="#EDF0F5">
+    <!-- plus, linksboven -->
+    <rect x="37"    y="50.25" width="34"  height="7.5" rx="3.75"/>
+    <rect x="50.25" y="37"    width="7.5" height="34"  rx="3.75"/>
+
+    <!-- min, rechtsboven -->
+    <rect x="109"   y="50.25" width="34"  height="7.5" rx="3.75"/>
+
+    <!-- deelteken, rechtsonder -->
+    <rect x="109"   y="122.25" width="34" height="7.5" rx="3.75"/>
+    <circle cx="126" cy="112" r="4.7"/>
+    <circle cx="126" cy="140" r="4.7"/>
+  </g>
+
+  <!-- keer, linksonder, in het accent van de app zodat er één rustpunt is -->
+  <g fill="#5C7BFF" transform="rotate(45 54 126)">
+    <rect x="37"    y="122.25" width="34"  height="7.5" rx="3.75"/>
+    <rect x="50.25" y="109"    width="7.5" height="34"  rx="3.75"/>
+  </g>
+</svg>

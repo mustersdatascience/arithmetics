@@ -1,4 +1,4 @@
-/* Rekentrainer.
+/* Mentat.
 
    Tijdens het rekenen praat deze module nooit met de database: alles gaat naar
    een lokale log en pas aan het eind van een sessie de wachtrij in. Wat de app
@@ -954,7 +954,7 @@ $('doExport').onclick = () => {
     { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'rekentrainer-backup.json';
+  a.download = 'mentat-backup.json';
   a.click();
 };
 
