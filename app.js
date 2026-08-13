@@ -322,6 +322,11 @@ function generate(conf) {
   const modes = activeModes(conf);
   const make = () => { const k = pick(modes); const q = MODES[k].gen(conf[k]); q.mode = k; return q; };
   if (opt.weighted !== '1' && opt.weighted !== 1) return make();
+  // Eén op de tien volledig willekeurig, zonder weging. De planner kiest anders
+  // zelf wat je ziet en leert daarna alleen van wat hij koos: een som waarvan
+  // hij ten onrechte denkt dat je hem kent, komt dan nooit langs om dat te
+  // weerleggen. Dit houdt de metingen eerlijk.
+  if (Math.random() < 0.1) return make();
   const cands = [make(), make(), make(), make(), make(), make()];
   const w = cands.map(c => weightOf(c.key));
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
@@ -346,7 +351,7 @@ let cur = null, typed = '', t0 = 0, tStart = 0, limit = 0, timer = null;
 let log = [], goed = 0, fout = 0, running = false, answered = 0;
 let modeCounts = {}, localDue = [], dueQueue = [], isDrill = false;
 let hiddenAt = 0, interrupted = false, sessionId = '';
-let pendingTimeout = null, scope = null;
+let pendingTimeout = null, scope = null, countTimer = null, lastWasRepeat = false;
 
 function wantPad() {
   if (opt.pad === '1') return true;
@@ -378,6 +383,7 @@ function buildPad() {
 /* drill: alleen je zwakste sommen. scopeCfg beperkt waaruit getrokken wordt;
    zo kun je gericht één categorie stampen in plaats van alles door elkaar. */
 function startSession(drill, scopeCfg) {
+  cancelCountdown();
   scope = scopeCfg || cfg;
   const modes = activeModes(scope);
   // foutmelding op het scherm waar je vandaan kwam, niet altijd bij de instellingen
@@ -407,17 +413,45 @@ function startSession(drill, scopeCfg) {
       .sort((a, b) => (b.urgency ?? 0) - (a.urgency ?? 0));
   }
 
-  limit = +opt.dur; log = []; goed = 0; fout = 0; running = true;
+  limit = +opt.dur; log = []; goed = 0; fout = 0; running = false;
   answered = 0; modeCounts = {}; localDue = []; interrupted = false; hiddenAt = 0;
+  lastWasRepeat = false;
   sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   tStart = Date.now();
   $('fill').style.width = '100%';
   document.querySelectorAll('.tick').forEach(t => t.remove());
   $('score').textContent = '0';
   buildPad(); show('session');
-  askNew();
-  timer = setInterval(tick, 100);
-  tick();
+
+  // Even aftellen, anders zit de tijd waarin je nog naar het scherm kijkt in de
+  // meting van je eerste som. Dat is bij elke sessie dezelfde vertekening, in
+  // precies het getal waar de hele planning op draait.
+  countdown(() => {
+    running = true;
+    tStart = Date.now();
+    askNew();
+    timer = setInterval(tick, 100);
+    tick();
+  });
+}
+
+function countdown(then) {
+  let n = 3;
+  $('a').textContent = ''; $('flash').textContent = '';
+  $('hint').textContent = ''; $('srsTag').textContent = '';
+  $('clock').textContent = String(limit > 0 ? limit : 0);
+  const step = () => {
+    if (n === 0) { countTimer = null; $('q').textContent = ''; then(); return; }
+    $('q').textContent = String(n--);
+    countTimer = setTimeout(step, 600);
+  };
+  step();
+}
+
+function cancelCountdown() {
+  if (!countTimer) return false;
+  clearTimeout(countTimer); countTimer = null; running = false;
+  return true;
 }
 
 function tick() {
@@ -433,21 +467,40 @@ function tick() {
   }
 }
 
+/* Welk deel van een gewone sessie mag een herhaling zijn?
+
+   Nooit meer dan een derde, ook niet als alles openstaat: een sessie moet
+   blijven voelen als willekeurig oefenen en niet als stampen. Wel minder zodra
+   er weinig echt dringend is, dan is er meer ruimte voor nieuw materiaal. */
+function repeatShare() {
+  if (!dueQueue.length) return 0;
+  const dringend = dueQueue.filter(r => (r.urgency ?? 1) >= 1.25).length;
+  return Math.min(0.33, 0.12 + dringend / 80);
+}
+
 function nextQuestion() {
   // 1. In deze sessie fout gedaan en weer aan de beurt.
   const i = localDue.findIndex(d => d.at <= answered);
   if (i >= 0) {
     const d = localDue.splice(i, 1)[0];
+    lastWasRepeat = true;
     return { ...d.q, repeat: true };
   }
-  // 2. Volgens de kansen-klok toe aan herhaling. In de stampmodus komt alles
-  //    hiervandaan; in een gewone sessie ongeveer één op de drie.
-  if (dueQueue.length && (isDrill || answered % 3 === 2)) {
+  // 2. Een herhaling uit de database. In de stampmodus komt alles hiervandaan.
+  //    Daarbuiten is de plaatsing willekeurig in plaats van elke derde som,
+  //    zodat er geen ritme in komt te zitten, en nooit twee achter elkaar.
+  const wilHerhaling = isDrill || (!lastWasRepeat && Math.random() < repeatShare());
+  if (dueQueue.length && wilHerhaling) {
     const row = dueQueue.shift();
     const q = fromRow(row);
-    if (q) { if (isDrill) dueQueue.push(row); return { ...q, due: true }; }
+    if (q) {
+      if (isDrill) dueQueue.push(row);
+      lastWasRepeat = true;
+      return { ...q, due: true };
+    }
   }
   // 3. Anders vers trekken.
+  lastWasRepeat = false;
   return generate(scope);
 }
 
@@ -501,7 +554,12 @@ function correct(v) {
 function record(ok, ms) {
   // Een som waarbij je tussendoor weg bent geweest, of die absurd lang duurde,
   // telt niet mee in de gemiddelden. Anders vergiftigt één onderbreking je data.
-  const outlier = interrupted || ms > 30000;
+  // De grens hangt af van je normtijd voor dit soort som: dertig seconden kan
+  // bij 4-cijferig optellen echt zijn en is bij 6 x 7 overduidelijk niet.
+  const known = board.get(cur.key);
+  const norm = known && known.norm_ms ? +known.norm_ms : null;
+  const cap = norm ? Math.min(60000, Math.max(10000, norm * 8)) : 30000;
+  const outlier = interrupted || ms > cap;
 
   // Op het scherm mag 98 + 43 net zo goed als 43 + 98 verschijnen, maar in de
   // database krijgt de som altijd dezelfde schrijfwijze, anders wisselt hij van
@@ -876,7 +934,10 @@ function renderStats() {
 
 $('start').onclick = () => startSession(false);
 $('drill').onclick = () => startSession(true);
-$('stop').onclick = endSession;
+$('stop').onclick = () => {
+  if (cancelCountdown()) { show('setup'); return; }
+  endSession();
+};
 $('again').onclick = () => startSession(isDrill, scope);
 $('back').onclick = () => { renderModes(); show('setup'); };
 $('sBack').onclick = () => show('setup');
