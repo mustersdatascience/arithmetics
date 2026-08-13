@@ -120,11 +120,34 @@ export async function loadFamilies() {
 export async function loadSessions(limit = 60) {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id,started_at,elapsed_s,limit_s,n_correct,n_wrong,preset,kind')
+    .select('id,started_at,elapsed_s,limit_s,n_correct,n_wrong,preset,kind,config')
     .order('started_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
   return data;
+}
+
+/* ---------------------------------------------------------- eigen presets */
+
+export async function loadPresets() {
+  const { data, error } = await supabase
+    .from('presets').select('id,name,config,limit_s').order('name');
+  if (error) throw error;
+  return data;
+}
+
+export async function savePreset(name, config, limit_s) {
+  const user = await currentUser();
+  if (!user) throw new Error('niet ingelogd');
+  const { error } = await supabase.from('presets').upsert(
+    { user_id: user.id, name, config, limit_s, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id,name' });
+  if (error) throw error;
+}
+
+export async function deletePreset(id) {
+  const { error } = await supabase.from('presets').delete().eq('id', id);
+  if (error) throw error;
 }
 
 /* ------------------------------------------------- eenmalige overname */

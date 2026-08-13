@@ -121,6 +121,22 @@ td:last-child,th:last-child{text-align:right}
 .warm{color:var(--warm)}
 .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 
+/* filterpaneel op het statistiekenscherm */
+.ctl{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.ctl select{flex:1;min-width:0}
+.panel{display:none;margin-bottom:10px}
+.panel.open{display:block}
+.chip.del{padding:7px 9px;color:var(--muted)}
+.chip.del:hover{border-color:var(--bad);color:var(--bad)}
+
+/* sessieoverzicht */
+.sess{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:12px;margin-bottom:8px}
+.sess .when{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.sess .what{margin:5px 0;font-size:14px}
+.sess .what span{display:block;font-family:ui-monospace,monospace;font-size:13px}
+.sess .nums{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+
 /* heatmap */
 .heat{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px}
 .heat table{border-collapse:separate;border-spacing:2px;width:auto;margin:0 auto}
@@ -159,6 +175,7 @@ td:last-child,th:last-child{text-align:right}
 
   <h2>Presets</h2>
   <div class="preset-row" id="presets"></div>
+  <button class="link" id="savePreset" style="margin-top:8px">Huidige instelling opslaan als preset</button>
 
   <h2>Oefeningen</h2>
   <div id="modes"></div>
@@ -184,13 +201,17 @@ td:last-child,th:last-child{text-align:right}
       <select id="auto"><option value="1" selected>aan</option><option value="0">uit, met enter</option></select>
     </div>
     <div class="frow">
-      <label for="tol">Tolerantie bij decimalen</label>
+      <label for="tol">Decimalen goedrekenen</label>
       <select id="tol">
+        <option value="d1">op 1 decimaal</option>
+        <option value="d2">op 2 decimalen</option>
+        <option value="d3">op 3 decimalen</option>
+        <option value="d4">op 4 decimalen</option>
         <option value="0">exact</option>
-        <option value="0.5">0,5 procent</option>
-        <option value="1" selected>1 procent</option>
-        <option value="2">2 procent</option>
-        <option value="5">5 procent</option>
+        <option value="0.5">0,5 procent marge</option>
+        <option value="1" selected>1 procent marge</option>
+        <option value="2">2 procent marge</option>
+        <option value="5">5 procent marge</option>
       </select>
     </div>
     <div class="frow">
@@ -220,6 +241,7 @@ td:last-child,th:last-child{text-align:right}
   </div>
   <div class="q mono" id="q"></div>
   <div class="a mono" id="a"></div>
+  <div class="sub" id="hint" style="text-align:center;min-height:20px"></div>
   <div class="flash" id="flash"></div>
   <div class="pad" id="keypad"></div>
   <button class="btn ghost" id="stop">Stoppen</button>
@@ -247,6 +269,7 @@ td:last-child,th:last-child{text-align:right}
 <section id="stats">
   <div class="top"><h1>Statistieken</h1><span class="sub" id="sCount"></span></div>
   <div class="tabs" id="sTabs"></div>
+  <div id="sControls"></div>
   <div id="sBody"></div>
   <button class="btn ghost" id="sBack">Terug</button>
 </section>

@@ -46,6 +46,36 @@ gemiddelde laat de trede staan; fout zet hem terug op nul. Trede 0 komt neer op
 Speeltellers kennen geen vergeten, dus als vangnet zakt alles één trede na
 zestig dagen stilte. Dat zit in de view `problem_due` en is daar aan te passen.
 
+### Statistiekenscherm
+
+Vier tabbladen. **Zwakste sommen** heeft hetzelfde instelpaneel als een sessie:
+je vinkt categorieën aan en zet bereiken, en de lijst laat precies die sommen
+zien. Dezelfde selectie bepaalt waar de knop *Stampen met deze selectie* uit
+trekt, zodat je één categorie kunt stampen zonder de rest ertussendoor. Sorteren
+kan op zwakste, meest boven je norm, traagst in seconden, vaakst fout of minst
+gezien.
+
+**Patronen** toont families, **Tafels** de heatmap, en **Sessies** laat per
+sessie zien welke categorieën met welke bereiken aanstonden en hoe lang hij
+duurde.
+
+### Presets
+
+Naast de ingebouwde presets kun je je eigen instelling opslaan onder een naam.
+Die staan in de database en niet in localStorage, dus een preset die je op je
+laptop maakt staat ook op je telefoon. Verwijderen kan met het kruisje naast de
+naam.
+
+### Decimalen
+
+Bij oefeningen met een decimaal antwoord bepaal je zelf wanneer iets goed is.
+Kies een **vast aantal decimalen** (1 tot 4) en het antwoord telt als het op dat
+aantal afgerond klopt: bij 1 : 3 op twee decimalen is 0,33 goed en 0,3 niet.
+Omdat de app dan weet wanneer je uitgetypt bent, werkt doorgaan-zodra-het-klopt
+ook bij decimalen. Kies je in plaats daarvan een **procentuele marge**, dan lever
+je zelf in met enter of de OK-toets. Het gekozen criterium staat tijdens het
+oefenen onder het antwoord.
+
 ### Datakwaliteit
 
 - Draai je het scherm weg of word je onderbroken, dan staat de klok stil en telt
@@ -68,6 +98,7 @@ zijn op volgorde toegepast.
 | `session_modes` | actieve bereiken per categorie plus het aantal beantwoorde sommen; dit is de kansen-klok |
 | `attempts` | ruwe log, één rij per beantwoorde som |
 | `problem_stats` | aggregaat per som inclusief de SRS-trede |
+| `presets` | je eigen opgeslagen instellingen |
 
 Views: `problem_view`, `shape_norm`, `problem_ranked`, `problem_due`,
 `problem_board`, `problem_families`, `family_stats`. Alles draait met
