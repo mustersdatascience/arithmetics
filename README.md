@@ -126,11 +126,17 @@ zijn staat onder de toelichting. Dezelfde preset met een andere tijdslimiet
 krijgt wel een eigen grafiek, want twee minuten en vijf minuten zijn niet met
 elkaar te vergelijken.
 
-Een sessie weggooien kan op twee plekken: in de sessielijst, en meteen op het
-resultaatscherm zodra je klaar bent. Dat laatste is voor de sessie die je na drie
-seconden wegklikte — die hoef je dan niet eerst in de statistieken op te zoeken.
-Weggooien trekt ook af wat de sessie aan je somstatistiek bijdroeg, zodat je
-gemiddelden er niet door vertekend blijven.
+Klik je op een staaf, dan klapt daaronder die ene sessie open: wanneer, hoe lang,
+hoeveel goed en fout, je tempo, waar hij in de reeks staat en hoe hij zich tot je
+gemiddelde verhoudt. De staaf zelf wordt inkt in plaats van brons, zodat je ziet
+welke openstaat, ook zonder kleurwaarneming. Het klikvlak loopt over de volle
+hoogte van de grafiek, want een lage staaf is anders nauwelijks te raken.
+
+Een sessie weggooien kan op drie plekken: in dat opengeklikte detail, in de
+sessielijst, en meteen op het resultaatscherm zodra je klaar bent. Dat laatste is
+voor de sessie die je na drie seconden wegklikte — die hoef je dan niet eerst in
+de statistieken op te zoeken. Weggooien trekt ook af wat de sessie aan je
+somstatistiek bijdroeg, zodat je gemiddelden er niet door vertekend blijven.
 
 Staat de sessie nog in de wachtrij omdat je geen verbinding had, dan wordt hij
 daar weggehaald en heeft de database hem nooit gezien. Verwijderen terwijl het

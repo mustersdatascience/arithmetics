@@ -158,12 +158,32 @@ tr.wrong td.ans{color:var(--bad)}
 .chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
   margin-bottom:10px}
 .chart-title{font-weight:600;font-size:15px}
-.chart svg{display:block;width:100%;height:96px}
+.chart svg{display:block;width:100%;height:96px;touch-action:manipulation}
 .chart-foot{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
   flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--muted);
   font-variant-numeric:tabular-nums}
 .chart-foot .up{color:var(--ok);font-weight:600}
 .chart-foot .down{color:var(--warm);font-weight:600}
+
+/* Een aangeklikte staaf wordt inkt: die kleur staat al voor de trendlijn en
+   blijft ook zonder kleurwaarneming van het brons te onderscheiden. */
+.chart svg .bar{fill:var(--accent)}
+.chart svg .bar.sel{fill:var(--ink)}
+.chart svg .hit{fill:var(--ink);fill-opacity:0;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.chart svg .hit:hover{fill-opacity:.08}
+.chart svg .hit.sel{fill-opacity:.06}
+.chart svg .hit:focus-visible{fill-opacity:.14;outline:none}
+
+/* details van één sessie, onder de grafiek waar je hem aanklikte */
+.chart .detail{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.chart .detail .dwhen{display:flex;justify-content:space-between;align-items:center;
+  gap:10px;font-size:13px;color:var(--muted)}
+.chart .detail .dnums{font-size:13px;margin-top:4px;font-variant-numeric:tabular-nums}
+.chart .detail .what{margin:6px 0}
+.chart .detail .what span{display:block;font-family:ui-monospace,monospace;font-size:13px}
+.chip.del.closedet{padding:2px 7px;font-size:12px;line-height:1.4;flex:none}
+.chip.del.deldet{padding:4px 11px;font-size:12px}
 
 /* sessieoverzicht */
 .sess{background:var(--panel);border:1px solid var(--line);border-radius:11px;
