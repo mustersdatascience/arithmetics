@@ -803,6 +803,9 @@ async function endSession() {
   $('rSync').textContent = res.left
     ? 'Nog niet opgeslagen, dit gaat vanzelf zodra je verbinding hebt.'
     : 'Opgeslagen.';
+  // De statistieken moeten deze sessie erbij halen; anders zie je hem pas na
+  // een verversing van de pagina in de grafiek en de sessielijst staan.
+  sessionCache = null;
   syncStatus();
   // ijkt de parameters bij zodra er genoeg nieuwe pogingen liggen
   try { if (await db.maybeFitModel()) await refreshModel(); } catch { /* geeft niet */ }
