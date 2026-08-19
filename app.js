@@ -137,6 +137,7 @@ async function refreshBoard() {
   try {
     const rows = await db.loadBoard();
     board = new Map(rows.map(r => [r.problem_key, r]));
+    stageCache = new Map();
     const n = rows.reduce((s, r) => s + r.n, 0);
     $('totalDone').textContent = n ? `${n} sommen gedaan` : '';
   } catch (e) {
@@ -357,6 +358,28 @@ function weightOf(key) {
   return Math.min(12, Math.max(0.4, u * 2.5));
 }
 
+/* Hoe ver je in een modus bent, als getal tussen 0 en 1: alle pogingen die het
+   bord van die modus kent, afgevlakt op 300. De logaritmemodi hangen hier hun
+   ankerbias aan, zodat de eerste sessies dicht bij een anker blijven en het
+   midden ertussen pas later langskomt. Gewist zodra het bord ververst. */
+let stageCache = new Map();
+
+function stageOf(mode) {
+  if (!stageCache.has(mode)) {
+    let n = 0;
+    for (const r of board.values()) if (r.mode === mode) n += r.n || 0;
+    stageCache.set(mode, Math.min(1, n / 300));
+  }
+  return stageCache.get(mode);
+}
+
+/* Een modus mag zijn eigen kandidaten onderling herwegen. Dit vermenigvuldigt
+   met het gewicht hierboven, dus de urgentie blijft leidend. */
+function biasOf(q) {
+  const m = MODES[q.mode];
+  return m.bias ? m.bias(q, stageOf(q.mode)) : 1;
+}
+
 function generate(conf) {
   const modes = activeModes(conf);
   const make = () => { const k = pick(modes); const q = MODES[k].gen(conf[k]); q.mode = k; return q; };
@@ -367,7 +390,7 @@ function generate(conf) {
   // weerleggen. Dit houdt de metingen eerlijk.
   if (Math.random() < 0.1) return make();
   const cands = [make(), make(), make(), make(), make(), make()];
-  const w = cands.map(c => weightOf(c.key));
+  const w = cands.map(c => weightOf(c.key) * biasOf(c));
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < cands.length; i++) { r -= w[i]; if (r <= 0) return cands[i]; }
   return cands[0];
@@ -389,6 +412,7 @@ function fromRow(row) {
 let cur = null, typed = '', t0 = 0, tStart = 0, limit = 0, timer = null;
 let log = [], goed = 0, fout = 0, running = false, answered = 0;
 let modeCounts = {}, localDue = [], dueQueue = [], isDrill = false;
+let scherp = 0, beoordeeld = 0, canSkip = false;
 let hiddenAt = 0, interrupted = false, sessionId = '';
 let pendingTimeout = null, scope = null, countTimer = null, lastWasRepeat = false;
 
@@ -454,7 +478,7 @@ function startSession(drill, scopeCfg) {
 
   limit = +opt.dur; log = []; goed = 0; fout = 0; running = false;
   answered = 0; modeCounts = {}; localDue = []; interrupted = false; hiddenAt = 0;
-  lastWasRepeat = false;
+  lastWasRepeat = false; scherp = 0; beoordeeld = 0; canSkip = false;
   sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   tStart = Date.now();
   $('fill').style.width = '100%';
@@ -477,7 +501,7 @@ function startSession(drill, scopeCfg) {
 function countdown(then) {
   let n = 3;
   $('a').textContent = ''; $('flash').textContent = '';
-  $('hint').textContent = ''; $('srsTag').textContent = '';
+  $('hint').textContent = ''; $('srsTag').textContent = ''; $('fb').textContent = '';
   $('clock').textContent = String(limit > 0 ? limit : 0);
   const step = () => {
     if (n === 0) { countTimer = null; $('q').textContent = ''; then(); return; }
@@ -563,31 +587,39 @@ function askNew() {
   $('q').textContent = cur.q;
   $('a').textContent = ''; $('a').className = 'a mono';
   $('flash').textContent = '';
-  $('hint').textContent = cur.dec ? tolLabel() : '';
+  $('hint').textContent = cur.dec ? (MODES[cur.mode].tolHint || tolLabel()) : '';
+  $('fb').textContent = '';
   $('srsTag').textContent = cur.repeat ? 'nogmaals' : cur.due ? 'herhaling' : '';
 }
 
-function fmt(n) {
+function fmt(n, mode) {
+  const eigen = MODES[mode] && MODES[mode].fmt;
+  if (eigen) return eigen(n);
   if (Number.isInteger(n)) return String(n);
   const d = decimalsRequired();
   if (d != null) return n.toFixed(d).replace('.', ',');
   return String(Math.round(n * 10000) / 10000).replace('.', ',');
 }
 
-function correct(v) {
+/* Beoordeelt een ingetypt antwoord als 'scherp', 'goed' of false. Een modus mag
+   zijn eigen marge meebrengen; heeft hij die niet, dan geldt de instelling
+   "Decimalen goedrekenen" van het setupscherm. */
+function grade(v) {
   if (v === '' || v == null) return false;
   const num = parseFloat(String(v).replace(',', '.'));
   if (isNaN(num)) return false;
-  if (!cur.dec) return num === cur.ans;
+  const eigen = MODES[cur.mode].grade;
+  if (eigen) return eigen(num, cur);
+  if (!cur.dec) return num === cur.ans ? 'goed' : false;
 
   const d = decimalsRequired();
   // Afronden op een vast aantal decimalen: allebei de kanten door dezelfde
   // functie halen, dan zijn afrondingsgrillen van floats voor beide gelijk.
-  if (d != null) return num.toFixed(d) === cur.ans.toFixed(d);
+  if (d != null) return num.toFixed(d) === cur.ans.toFixed(d) ? 'goed' : false;
 
   const tol = +opt.tol / 100;
-  if (!(tol > 0)) return Math.abs(num - cur.ans) < 1e-9;
-  return Math.abs(num - cur.ans) <= Math.max(Math.abs(cur.ans) * tol, 1e-9);
+  const marge = tol > 0 ? Math.max(Math.abs(cur.ans) * tol, 1e-9) : 1e-9;
+  return Math.abs(num - cur.ans) <= marge ? 'goed' : false;
 }
 
 function record(ok, ms) {
@@ -634,23 +666,46 @@ function record(ok, ms) {
   }
 }
 
-function finish(ok) {
+/* res is 'scherp', 'goed' of false. */
+function finish(res) {
   if (pendingTimeout) return;
+  const ok = res !== false;
   record(ok, Date.now() - t0);
-  if (ok) { askNew(); return; }
-  $('a').className = 'a mono bad';
-  $('flash').textContent = `${cur.q} = ${fmt(cur.ans)}`;
+
+  const m = MODES[cur.mode];
+  if (m.grade) { beoordeeld++; if (res === 'scherp') scherp++; }
+
+  // Een modus met uitleg staat na élk antwoord even stil, ook als het goed was:
+  // daar zit de les, niet in goed of fout. Een toetsaanslag slaat de rest van de
+  // wachttijd over, zodat je tempo niet aan de uitleg vastzit.
+  const uitleg = m.feedback ? m.feedback(cur, typed, res) : '';
+  if (ok && !uitleg) { askNew(); return; }
+
+  $('a').className = 'a mono' + (ok ? '' : ' bad');
+  // het juiste antwoord staat al vooraan in de uitleg, dus dan niet nog eens
+  $('flash').textContent = (uitleg || ok) ? '' : `${cur.q} = ${fmt(cur.ans, cur.mode)}`;
+  $('fb').textContent = uitleg;
+  $('fb').className = 'fb' + (ok ? '' : ' bad');
   typed = '';
+  canSkip = !!uitleg;
   pendingTimeout = setTimeout(() => {
-    pendingTimeout = null;
+    pendingTimeout = null; canSkip = false;
     if (running) askNew();
-  }, 900);
+  }, uitleg ? 2500 : 900);
+}
+
+/* De uitleg wegklikken en meteen door met de volgende som. */
+function skipFeedback() {
+  clearTimeout(pendingTimeout);
+  pendingTimeout = null; canSkip = false;
+  if (running) askNew();
 }
 
 function press(k) {
-  if (!running || pendingTimeout) return;
+  if (!running) return;
+  if (pendingTimeout) { if (canSkip) skipFeedback(); return; }
   if (k === 'Backspace') typed = typed.slice(0, -1);
-  else if (k === 'Enter') { if (typed !== '') finish(correct(typed)); return; }
+  else if (k === 'Enter') { if (typed !== '') finish(grade(typed)); return; }
   else if (/^[0-9]$/.test(k)) typed += k;
   else if (k === '.' || k === ',') { if (!typed.includes(',')) typed += ','; }
   else if (k === '-') { if (typed === '') typed = '-'; }
@@ -664,16 +719,23 @@ function press(k) {
   if (!auto || typed === '') return;
 
   if (cur.dec) {
+    // Brengt de modus zijn eigen tolerantie mee, dan hoort daar ook een eigen
+    // regel bij voor wanneer je klaar bent met typen. Beoordelen zodra het
+    // toevallig binnen de marge valt zou een half antwoord goedrekenen.
+    const af = MODES[cur.mode].complete;
+    if (af) { if (af(typed)) finish(grade(typed)); return; }
     // Met een vast aantal decimalen weten we wanneer je klaar bent met typen,
     // dus dan kan doorgaan-zodra-het-klopt ook bij decimale antwoorden.
     const d = decimalsRequired();
     if (d == null) return;
-    if (correct(typed)) { finish(true); return; }
+    const res = grade(typed);
+    if (res) { finish(res); return; }
     if ((typed.split(',')[1] || '').length >= d) { finish(false); return; }
     return;
   }
 
-  if (correct(typed)) { finish(true); return; }
+  const res = grade(typed);
+  if (res) { finish(res); return; }
   // Evenveel cijfers als het juiste antwoord en toch niet goed: dat is een
   // fout. Zonder deze regel werd in deze stand nooit een fout geregistreerd.
   if (typed.replace('-', '').length >= String(cur.ans).length) finish(false);
@@ -715,7 +777,7 @@ const DEL_VRAAG = 'Deze sessie verwijderen? De sommen die je erin deed tellen ' 
                   'dan ook niet meer mee in je statistiek.';
 
 function renderResults() {
-  const antwoord = l => (l.answer == null ? '?' : fmt(l.answer));
+  const antwoord = l => (l.answer == null ? '?' : fmt(l.answer, l.mode));
 
   const fouten = log.filter(l => !l.ok);
   $('rMistakes').innerHTML = fouten.length
@@ -758,7 +820,8 @@ async function endSession() {
   $('rGoed').textContent = goed;
   $('rTempo').textContent = nl(tempo);
   $('rAcc').textContent = acc + '%';
-  $('pb').textContent = isDrill ? 'stampsessie' : '';
+  $('pb').textContent = [isDrill ? 'stampsessie' : '',
+    beoordeeld ? `${scherp} van ${beoordeeld} scherp` : ''].filter(Boolean).join(' · ');
 
   const max = Math.max(1, ...log.map(l => l.ms));
   $('strip').innerHTML = log.map(l =>
