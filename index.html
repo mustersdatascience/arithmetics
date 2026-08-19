@@ -108,6 +108,13 @@ input[type=email],input[type=password]{
 .a{font-size:clamp(30px,9vw,44px);text-align:center;color:var(--accent);min-height:1.3em;margin-top:6px}
 .a.bad{color:var(--bad)}
 .flash{font-size:14px;text-align:center;color:var(--bad);min-height:20px;margin-top:2px}
+
+/* De uitleg bij de logaritmemodi: exacte waarde, je afwijking, en het anker met
+   de correctie die je had moeten toepassen. Staat er na élk antwoord, dus in de
+   rustige kleur; alleen na een fout in karmijn. */
+.fb{font-size:13px;line-height:1.5;text-align:center;color:var(--muted);
+  margin-top:8px;min-height:20px;font-variant-numeric:tabular-nums}
+.fb.bad{color:var(--bad)}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:26px}
 .key{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;
   padding:17px 0;font-size:22px;font-family:ui-monospace,monospace;cursor:pointer;
@@ -310,6 +317,7 @@ tr.wrong td.ans{color:var(--bad)}
   <div class="a mono" id="a"></div>
   <div class="sub" id="hint" style="text-align:center;min-height:20px"></div>
   <div class="flash" id="flash"></div>
+  <div class="fb" id="fb"></div>
   <div class="pad" id="keypad"></div>
   <button class="btn ghost" id="stop">Stoppen</button>
 </section>

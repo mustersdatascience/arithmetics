@@ -111,6 +111,58 @@ Elke ijking wordt gelogd in `model_fits` met de gebruikte aantallen, en elke
 uitkomst wordt geklemd op een verdedigbaar bereik. Een model dat zichzelf
 bijstelt moet niet ongemerkt kunnen wegdrijven.
 
+### Log en antilog uit je hoofd
+
+Twee oefensoorten trainen het interpoleren tussen de ankers die je uit je hoofd
+kent. **Antilog interpolatie** vraagt 10^x voor een exponent met drie decimalen
+(0,296) en wil drie significante cijfers terug: goed is binnen 0,5 procent,
+scherp binnen 0,1. **Log interpolatie** vraagt de log van een getal tussen 1 en
+10 met twee decimalen (3,40) en wil drie decimalen: goed is binnen 0,005, scherp
+binnen 0,002. Hoeveel er scherp waren staat na afloop op het resultaatscherm.
+
+Bij deze twee heeft het antwoord een marge, en dan telt niet alleen of het
+klopte maar ook hoe je eraan kwam. Na élk antwoord, goed of fout, staat er
+daarom een regel met de exacte waarde, je afwijking en het anker waar je vandaan
+had moeten rekenen:
+
+```
+10^0,296 = 1,977 · jij 1,98, +0,15 procent, scherp · anker log 2 = 0,3010 ·
+0,296 ligt 0,0050 onder 0,3010 en 0,001 log is 0,23 procent, dus
+−1,15 procent: 2 × 0,9885 = 1,977
+```
+
+De ankers zijn log 2, log 3, log 5 en log 7, de veelvouden van 0,05 uit de
+antilog-tabel, en de samengestelde ankers log 3,5 = log 7 − log 2,
+log 2,5 = 1 − log 4 en log 1,5 = log 3 − log 2 — dat laatste is dezelfde plek
+als log 15 = log 3 + log 5. Bij een samengesteld anker staat de afleiding erbij.
+Gekozen wordt op de kortste afstand in log-ruimte, met één uitzondering: een
+tabelanker ligt soms vlak naast een benoemd anker, 0,300 naast log 2 = 0,3010,
+en dan gaat het benoemde voor. "2" is in je hoofd bruikbaarder dan 1,995.
+
+De correctie zelf leunt op twee vuistregels die elkaars omgekeerde zijn: 0,001 in
+de log is 0,23 procent in het getal, en 1 procent in het getal is 0,00434 in de
+log. Welke van de twee in de uitleg staat hangt af van de richting waarin je
+rekent.
+
+De uitleg houdt de som tweeënhalve seconde vast; een toets of de OK-knop slaat
+de rest van die tijd over, zodat je tempo niet aan het lezen vastzit. De meting
+van je antwoordtijd staat dan al vast, dus de uitleg zit nooit in je tijd.
+
+De trekking schuift mee met hoe ver je bent. Zolang je nog weinig van zo'n soort
+gedaan hebt liggen de vragen tegen de ankers aan, waar de correctie klein is; met
+het aantal pogingen loopt het zwaartepunt op naar precies het midden tussen twee
+ankers, waar hij het grootst is. Dat is geen tweede planner maar een factor
+bovenop het gewone gewicht uit `problem_board`: urgentie blijft leidend, de
+ongewogen som op elke tien blijft ongewogen, en met "zwakke sommen vaker
+herhalen" uit vervalt hij net als de rest van de weging.
+
+Beide soorten bewaren hun vraag als geheel getal, want `attempts.g1` is een
+integer-kolom en daar hangt de kansen-klok aan: 296 is de exponent 0,296 en 340
+het getal 3,40. Daarom staan de bereiken op het instelscherm in duizendsten en
+honderdsten. Een exponent onder 0,100 heeft één cijfer minder en valt daarmee in
+een andere vorm voor de normtijd; dat is de prijs van dezelfde kolommen
+gebruiken, en het bepaalt alleen met welke sommen je snelheid vergeleken wordt.
+
 ### Voortgang per preset
 
 Het tabblad **Voortgang** zet per preset je aantal goede antwoorden per sessie
@@ -210,4 +262,10 @@ ongeacht welke letterfamilie een toestel heeft. Pas je het icoon aan, draai dan
 de app zonder derde partij en blijft hij werken zonder bereik.
 
 Een nieuwe oefensoort toevoegen is één blok in `modes.js` met `gen`, `build` en
-`range`. De database hoeft daar niet voor te veranderen.
+`range`. De database hoeft daar niet voor te veranderen, zolang `g1`, `g2` en
+`base` gehele getallen blijven.
+
+Heeft zo'n soort een eigen marge, schrijfwijze of uitleg nodig, dan kunnen
+`grade`, `complete`, `fmt`, `tolHint`, `feedback` en `bias` erbij. Zonder die
+sleutels valt de app terug op het gewone gedrag: goedrekenen volgens de
+instelling op het setupscherm, en wegen op urgentie alleen.
